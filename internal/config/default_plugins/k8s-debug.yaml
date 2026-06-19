@@ -1,0 +1,250 @@
+# Kubernetes Debug & Analysis plugins for rk9s
+# AI-assisted troubleshooting using kubectl and cluster context
+# Replaces HolmesGPT with native Kubernetes tooling
+#
+# Shortcuts:
+#   Shift-H  Quick diagnosis (events, logs, describe)
+#   Shift-Q  Deep analysis (full context dump)
+#   Shift-A  AI prompt generator (copy to clipboard)
+
+plugins:
+  # Quick diagnosis - gathers key info for troubleshooting
+  k8s-diagnose:
+    shortCut: Shift-H
+    description: Quick diagnosis
+    scopes:
+      - pods
+      - deployments
+      - daemonsets
+      - statefulsets
+      - replicasets
+      - jobs
+      - cronjobs
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        clear
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        
+        echo '╔═══════════════════════════════════════════════════════════╗'
+        echo '║              Kubernetes Quick Diagnosis                    ║'
+        echo '╚═══════════════════════════════════════════════════════════╝'
+        echo ""
+        echo "Resource: $RESOURCE_NAME/$NAME"
+        echo "Namespace: $NAMESPACE"
+        echo "Context: ${CONTEXT:-default}"
+        echo ""
+        
+        echo '┌─ Status ─────────────────────────────────────────────────┐'
+        kubectl $CTX -n "$NAMESPACE" get "$RESOURCE_NAME" "$NAME" -o wide 2>/dev/null
+        echo '└──────────────────────────────────────────────────────────┘'
+        echo ""
+        
+        echo '┌─ Recent Events ───────────────────────────────────────────┐'
+        kubectl $CTX -n "$NAMESPACE" get events --field-selector "involvedObject.name=$NAME" --sort-by='.lastTimestamp' 2>/dev/null | tail -15
+        echo '└──────────────────────────────────────────────────────────┘'
+        echo ""
+        
+        echo '┌─ Conditions ──────────────────────────────────────────────┐'
+        kubectl $CTX -n "$NAMESPACE" get "$RESOURCE_NAME" "$NAME" -o jsonpath='{range .status.conditions[*]}{.type}: {.status} ({.reason}) - {.message}{"\n"}{end}' 2>/dev/null
+        echo '└──────────────────────────────────────────────────────────┘'
+        echo ""
+        
+        if [ "$RESOURCE_NAME" = "pods" ] || [ "$RESOURCE_NAME" = "pod" ]; then
+          echo '┌─ Container Status ─────────────────────────────────────────┐'
+          kubectl $CTX -n "$NAMESPACE" get pod "$NAME" -o jsonpath='{range .status.containerStatuses[*]}Container: {.name}
+  Ready: {.ready}, Restarts: {.restartCount}
+  State: {.state}
+{end}' 2>/dev/null
+          echo '└──────────────────────────────────────────────────────────┘'
+          echo ""
+          
+          echo '┌─ Recent Logs (last 20 lines) ──────────────────────────────┐'
+          kubectl $CTX -n "$NAMESPACE" logs "$NAME" --tail=20 --all-containers 2>/dev/null | head -30
+          echo '└──────────────────────────────────────────────────────────┘'
+        fi
+        
+        echo ""
+        echo "Press Enter to continue..."
+        read -r
+
+  # Deep analysis - comprehensive context dump
+  k8s-deep-analyze:
+    shortCut: Shift-Q
+    description: Deep analysis
+    scopes:
+      - pods
+      - deployments
+      - daemonsets
+      - statefulsets
+      - replicasets
+      - services
+      - ingresses
+      - configmaps
+      - secrets
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        clear
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        
+        echo '╔═══════════════════════════════════════════════════════════╗'
+        echo '║              Kubernetes Deep Analysis                      ║'
+        echo '╚═══════════════════════════════════════════════════════════╝'
+        echo ""
+        echo "Resource: $RESOURCE_NAME/$NAME"
+        echo "Namespace: $NAMESPACE"
+        echo ""
+        
+        echo '=== DESCRIBE ==='
+        kubectl $CTX -n "$NAMESPACE" describe "$RESOURCE_NAME" "$NAME" 2>/dev/null
+        echo ""
+        
+        echo '=== YAML (spec) ==='
+        kubectl $CTX -n "$NAMESPACE" get "$RESOURCE_NAME" "$NAME" -o yaml 2>/dev/null | head -100
+        echo ""
+        
+        echo '=== RELATED EVENTS ==='
+        kubectl $CTX -n "$NAMESPACE" get events --field-selector "involvedObject.name=$NAME" --sort-by='.lastTimestamp' 2>/dev/null
+        echo ""
+        
+        if [ "$RESOURCE_NAME" = "pods" ] || [ "$RESOURCE_NAME" = "pod" ]; then
+          echo '=== FULL LOGS ==='
+          kubectl $CTX -n "$NAMESPACE" logs "$NAME" --tail=100 --all-containers 2>/dev/null
+          echo ""
+          
+          echo '=== PREVIOUS LOGS (if crashed) ==='
+          kubectl $CTX -n "$NAMESPACE" logs "$NAME" --previous --tail=50 --all-containers 2>/dev/null || echo "(no previous logs)"
+        fi
+        
+        echo ""
+        echo "Press Enter to continue..."
+        read -r
+
+  # Generate AI prompt for external tools
+  k8s-ai-prompt:
+    shortCut: Shift-A
+    description: Generate AI prompt
+    scopes:
+      - pods
+      - deployments
+      - daemonsets
+      - statefulsets
+      - services
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        
+        # Gather context
+        STATUS=$(kubectl $CTX -n "$NAMESPACE" get "$RESOURCE_NAME" "$NAME" -o wide 2>/dev/null)
+        EVENTS=$(kubectl $CTX -n "$NAMESPACE" get events --field-selector "involvedObject.name=$NAME" --sort-by='.lastTimestamp' 2>/dev/null | tail -10)
+        CONDITIONS=$(kubectl $CTX -n "$NAMESPACE" get "$RESOURCE_NAME" "$NAME" -o jsonpath='{range .status.conditions[*]}{.type}: {.status} - {.message}{"\n"}{end}' 2>/dev/null)
+        
+        LOGS=""
+        if [ "$RESOURCE_NAME" = "pods" ] || [ "$RESOURCE_NAME" = "pod" ]; then
+          LOGS=$(kubectl $CTX -n "$NAMESPACE" logs "$NAME" --tail=30 --all-containers 2>/dev/null)
+        fi
+        
+        # Build prompt
+        PROMPT="I need help troubleshooting a Kubernetes $RESOURCE_NAME named '$NAME' in namespace '$NAMESPACE'.
+
+## Current Status
+$STATUS
+
+## Recent Events
+$EVENTS
+
+## Conditions
+$CONDITIONS"
+
+        if [ -n "$LOGS" ]; then
+          PROMPT="$PROMPT
+
+## Recent Logs
+$LOGS"
+        fi
+
+        PROMPT="$PROMPT
+
+## Question
+What could be causing issues with this resource? Please analyze the above information and provide:
+1. Likely root cause
+2. Suggested fixes
+3. Commands to verify the fix"
+
+        # Copy to clipboard (macOS)
+        echo "$PROMPT" | pbcopy 2>/dev/null && echo "✓ AI prompt copied to clipboard!" || echo "$PROMPT"
+        
+        echo ""
+        echo "Prompt has been copied to clipboard."
+        echo "Paste it into your AI assistant (Claude, ChatGPT, Cursor, etc.)"
+        echo ""
+        echo "Press Enter to continue..."
+        read -r
+
+  # Node diagnosis
+  k8s-node-diagnose:
+    shortCut: Shift-H
+    description: Node diagnosis
+    scopes:
+      - nodes
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        clear
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        
+        echo '╔═══════════════════════════════════════════════════════════╗'
+        echo '║              Node Diagnosis: '"$NAME"'                         '
+        echo '╚═══════════════════════════════════════════════════════════╝'
+        echo ""
+        
+        echo '┌─ Node Status ──────────────────────────────────────────────┐'
+        kubectl $CTX get node "$NAME" -o wide 2>/dev/null
+        echo '└──────────────────────────────────────────────────────────┘'
+        echo ""
+        
+        echo '┌─ Conditions ──────────────────────────────────────────────┐'
+        kubectl $CTX get node "$NAME" -o jsonpath='{range .status.conditions[*]}{.type}: {.status} ({.reason}){"\n"}{end}' 2>/dev/null
+        echo '└──────────────────────────────────────────────────────────┘'
+        echo ""
+        
+        echo '┌─ Resource Usage ───────────────────────────────────────────┐'
+        kubectl $CTX top node "$NAME" 2>/dev/null || echo "  (metrics-server not available)"
+        echo '└──────────────────────────────────────────────────────────┘'
+        echo ""
+        
+        echo '┌─ Allocatable Resources ────────────────────────────────────┐'
+        kubectl $CTX get node "$NAME" -o jsonpath='CPU: {.status.allocatable.cpu}
+Memory: {.status.allocatable.memory}
+Pods: {.status.allocatable.pods}
+' 2>/dev/null
+        echo '└──────────────────────────────────────────────────────────┘'
+        echo ""
+        
+        echo '┌─ Recent Events ───────────────────────────────────────────┐'
+        kubectl $CTX get events -A --field-selector "involvedObject.name=$NAME" --sort-by='.lastTimestamp' 2>/dev/null | tail -10
+        echo '└──────────────────────────────────────────────────────────┘'
+        echo ""
+        
+        echo '┌─ Pods on Node ────────────────────────────────────────────┐'
+        kubectl $CTX get pods -A --field-selector "spec.nodeName=$NAME" --no-headers 2>/dev/null | wc -l | xargs -I{} echo "  {} pods running on this node"
+        kubectl $CTX get pods -A --field-selector "spec.nodeName=$NAME,status.phase!=Running" 2>/dev/null | head -10
+        echo '└──────────────────────────────────────────────────────────┘'
+        echo ""
+        
+        echo "Press Enter to continue..."
+        read -r

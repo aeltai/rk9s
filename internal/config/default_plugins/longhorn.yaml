@@ -1,8 +1,7 @@
 # Longhorn CLI (longhornctl) plugins for rk9s
 # Requires: longhornctl (https://github.com/longhorn/cli/releases)
-# Navigation: F2 for Longhorn Volumes view, Left/Right arrow to cycle CRDs
+# Navigation: Use Shift-1 to jump to Longhorn Volumes, Shift-2 for Longhorn Nodes
 plugins:
-  # ─── volumes.longhorn.io ─────────────────────────────────
   longhorn-check:
     shortCut: Shift-L
     description: Longhorn preflight check (longhornctl)
@@ -10,116 +9,24 @@ plugins:
       - volumes.longhorn.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
         if command -v longhornctl >/dev/null 2>&1; then
           echo "=== Longhorn Environment Check ==="
-          longhornctl --kubeconfig $KUBECONFIG check preflight 2>&1         else
+          longhornctl --kubeconfig $KUBECONFIG check preflight 2>&1 | less -K
+        else
           echo "longhornctl not installed. Showing volume status via kubectl..."
           echo ""
-          kubectl get volumes.longhorn.io -n longhorn-system --context $CONTEXT -o wide 2>&1         fi
-  longhorn-create-snapshot:
-    shortCut: Shift-C
-    override: true
-    description: Create snapshot
-    confirm: true
-    scopes:
-      - volumes.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if command -v longhornctl >/dev/null 2>&1; then
-          echo "Creating snapshot for volume: $NAME"
-          longhornctl --kubeconfig $KUBECONFIG snapshot create $NAME 2>&1
-          echo ""
-          echo "--- Snapshots ---"
-          longhornctl --kubeconfig $KUBECONFIG snapshot list $NAME 2>&1
-        else
-          echo "longhornctl required for snapshot create."
-          echo "Install: https://github.com/longhorn/cli/releases"
-        fi
-  longhorn-snapshots:
-    shortCut: Shift-B
-    description: List snapshots
-    scopes:
-      - volumes.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if command -v longhornctl >/dev/null 2>&1; then
-          echo "=== Snapshots for Volume: $NAME ==="
-          longhornctl --kubeconfig $KUBECONFIG snapshot list $NAME 2>/dev/null         else
-          echo "=== Snapshots (kubectl) ==="
-          kubectl get snapshots.longhorn.io -n longhorn-system --context $CONTEXT -l longhornvolume=$NAME -o wide 2>/dev/null         fi
-  longhorn-delete-snapshot:
-    shortCut: Shift-D
-    override: true
-    description: Delete snapshot (interactive)
-    confirm: true
-    dangerous: true
-    scopes:
-      - volumes.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if ! command -v longhornctl >/dev/null 2>&1; then
-          echo "longhornctl required."
-          exit 1
-        fi
-        echo "=== Snapshots for Volume: $NAME ==="
-        longhornctl --kubeconfig $KUBECONFIG snapshot list $NAME 2>/dev/null
-        echo ""
-        echo "Enter snapshot name to delete (or Ctrl-C to cancel):"
-        read -r SNAP
-        if [ -n "$SNAP" ]; then
-          longhornctl --kubeconfig $KUBECONFIG snapshot delete $NAME "$SNAP" 2>&1
-        fi
-  longhorn-revert-snapshot:
-    shortCut: Shift-V
-    override: true
-    description: Revert to snapshot
-    confirm: true
-    dangerous: true
-    scopes:
-      - volumes.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if ! command -v longhornctl >/dev/null 2>&1; then
-          echo "longhornctl required."
-          exit 1
-        fi
-        echo "=== Snapshots for Volume: $NAME ==="
-        longhornctl --kubeconfig $KUBECONFIG snapshot list $NAME 2>/dev/null
-        echo ""
-        echo "Enter snapshot name to revert to (or Ctrl-C to cancel):"
-        read -r SNAP
-        if [ -n "$SNAP" ]; then
-          echo "Reverting volume $NAME to snapshot $SNAP..."
-          longhornctl --kubeconfig $KUBECONFIG snapshot revert $NAME "$SNAP" 2>&1
+          kubectl get volumes.longhorn.io -n longhorn-system --context $CONTEXT -o wide 2>&1 | less -K
         fi
   longhorn-trim-volume:
     shortCut: Shift-T
-    description: Trim volume (reclaim space)
+    description: Trim Longhorn volume (reclaim space)
     scopes:
       - volumes.longhorn.io
     command: bash
     background: false
-    inView: true
     confirm: true
     args:
       - -c
@@ -130,52 +37,13 @@ plugins:
           echo "longhornctl not installed. Cannot trim volume."
           echo "Install: https://github.com/longhorn/cli/releases"
         fi
-  longhorn-create-backup:
-    shortCut: Shift-K
-    override: true
-    description: Create backup
-    confirm: true
-    scopes:
-      - volumes.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if command -v longhornctl >/dev/null 2>&1; then
-          echo "Creating backup for volume: $NAME"
-          longhornctl --kubeconfig $KUBECONFIG backup create $NAME 2>&1
-        else
-          echo "longhornctl required for backup create."
-        fi
-  longhorn-list-backups:
-    shortCut: Shift-U
-    override: true
-    description: List backups
-    scopes:
-      - volumes.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if command -v longhornctl >/dev/null 2>&1; then
-          echo "=== Backups ==="
-          longhornctl --kubeconfig $KUBECONFIG backup list 2>&1
-        else
-          echo "=== Backups (kubectl) ==="
-          kubectl get backups.longhorn.io -n longhorn-system --context $CONTEXT -o wide 2>/dev/null
-        fi
   longhorn-get-replica:
     shortCut: Shift-R
-    description: Replica info for volume
+    description: Longhorn replica info for volume
     scopes:
       - volumes.longhorn.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
@@ -184,170 +52,47 @@ plugins:
         kubectl get replicas.longhorn.io -n longhorn-system --context $CONTEXT -l longhornvolume=$NAME -o wide 2>/dev/null
         echo ""
         echo "--- Engines ---"
-        kubectl get engines.longhorn.io -n longhorn-system --context $CONTEXT -l longhornvolume=$NAME -o wide 2>/dev/null
-  longhorn-attach-detach:
-    shortCut: Shift-A
-    override: true
-    description: Attach/detach volume
-    confirm: true
-    scopes:
-      - volumes.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if ! command -v longhornctl >/dev/null 2>&1; then
-          echo "longhornctl required."
-          exit 1
-        fi
-        STATE=$(kubectl get volumes.longhorn.io -n longhorn-system $NAME --context $CONTEXT -o jsonpath='{.status.state}' 2>/dev/null)
-        echo "Volume: $NAME  State: $STATE"
-        echo ""
-        if [ "$STATE" = "attached" ]; then
-          echo "Detaching volume..."
-          longhornctl --kubeconfig $KUBECONFIG volume detach $NAME 2>&1
-        else
-          echo "Available nodes:"
-          kubectl get nodes --context $CONTEXT -o custom-columns='NAME:.metadata.name' --no-headers 2>/dev/null
-          echo ""
-          echo "Enter node name to attach to (or Ctrl-C to cancel):"
-          read -r NODE
-          if [ -n "$NODE" ]; then
-            longhornctl --kubeconfig $KUBECONFIG volume attach $NAME --node "$NODE" 2>&1
-          fi
-        fi
+        kubectl get engines.longhorn.io -n longhorn-system --context $CONTEXT -l longhornvolume=$NAME -o wide 2>/dev/null | less -K
   longhorn-volume-yaml:
     shortCut: Shift-S
     override: true
-    description: Longhorn Volume YAML
+    description: Longhorn Volume YAML + replicas
     scopes:
       - volumes.longhorn.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
-      - kubectl get volume -n longhorn-system $NAME -o yaml --context $CONTEXT
-  longhorn-overview:
-    shortCut: Shift-I
-    override: true
-    description: Longhorn overview dashboard
+      - kubectl get volume -n longhorn-system $NAME -o yaml --context $CONTEXT | less -K
+  longhorn-snapshots:
+    shortCut: Shift-B
+    description: Longhorn snapshots for volume
     scopes:
       - volumes.longhorn.io
-      - nodes.longhorn.io
-      - engineimages.longhorn.io
-      - replicas.longhorn.io
-      - settings.longhorn.io
-      - backups.longhorn.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
-        echo "=== Longhorn Storage Overview ==="
-        echo ""
-        echo "--- Volumes ---"
-        kubectl get volumes.longhorn.io -n longhorn-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,STATE:.status.state,ROBUSTNESS:.status.robustness,SIZE:.spec.size,REPLICAS:.spec.numberOfReplicas,NODE:.status.currentNodeID' 2>/dev/null || echo "  (no volumes)"
-        echo ""
-        echo "--- Nodes ---"
-        kubectl get nodes.longhorn.io -n longhorn-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,READY:.status.conditions.Ready.status,SCHEDULABLE:.spec.allowScheduling' 2>/dev/null || echo "  (no nodes)"
-        echo ""
-        echo "--- Engine Images ---"
-        kubectl get engineimages.longhorn.io -n longhorn-system --context $CONTEXT -o wide 2>/dev/null || echo "  (no engine images)"
-        echo ""
-        echo "--- Backups ---"
-        kubectl get backups.longhorn.io -n longhorn-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,STATE:.status.state,SIZE:.status.size' 2>/dev/null | head -15 || echo "  (no backups)"
-        echo ""
-        echo "--- Replicas (top 30) ---"
-        kubectl get replicas.longhorn.io -n longhorn-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,VOLUME:.spec.volumeName,NODE:.spec.nodeID,STATE:.status.currentState' 2>/dev/null | head -30
-        echo ""
-        echo "--- Settings (top 20) ---"
-        kubectl get settings.longhorn.io -n longhorn-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,VALUE:.value' 2>/dev/null | head -20   # ─── nodes.longhorn.io ───────────────────────────────────
-  longhorn-node-detail:
-    shortCut: Shift-O
-    override: true
-    description: Longhorn node detail
-    scopes:
-      - nodes.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Longhorn Node: $NAME ==="
-        echo ""
         if command -v longhornctl >/dev/null 2>&1; then
-          longhornctl --kubeconfig $KUBECONFIG node get $NAME 2>/dev/null
+          longhornctl --kubeconfig $KUBECONFIG snapshot list $NAME 2>/dev/null | less -K
         else
-          kubectl get nodes.longhorn.io -n longhorn-system $NAME --context $CONTEXT -o yaml 2>/dev/null
-        fi   # ─── replicas.longhorn.io ────────────────────────────────
-  longhorn-replica-detail:
-    shortCut: Shift-O
-    override: true
-    description: Replica detail
-    scopes:
-      - replicas.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Replica: $NAME ==="
-        kubectl get replicas.longhorn.io -n longhorn-system $NAME --context $CONTEXT -o jsonpath='{
-          "Volume:    "}{.spec.volumeName}{"\n"}{
-          "Node:      "}{.spec.nodeID}{"\n"}{
-          "Disk:      "}{.spec.diskID}{"\n"}{
-          "State:     "}{.status.currentState}{"\n"}{
-          "Data Path: "}{.spec.dataPath}{"\n"}{
-          }' 2>/dev/null   # ─── settings.longhorn.io ────────────────────────────────
-  longhorn-setting-detail:
-    shortCut: Shift-O
-    override: true
-    description: Setting detail
-    scopes:
-      - settings.longhorn.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Setting: $NAME ==="
-        kubectl get settings.longhorn.io -n longhorn-system $NAME --context $CONTEXT -o jsonpath='{
-          "Value:       "}{.value}{"\n"}{
-          "Default:     "}{.definition.default}{"\n"}{
-          "Description: "}{.definition.description}{"\n"}{
-          }' 2>/dev/null   # ─── Cross-resource nav (from nodes scope) ───────────────
+          echo "longhornctl not installed. Showing volume snapshot info..."
+          kubectl get snapshots.longhorn.io -n longhorn-system --context $CONTEXT -l longhornvolume=$NAME -o wide 2>/dev/null | less -K
+        fi
   longhorn-node-info:
-    shortCut: Shift-G
-    description: Longhorn node storage info
+    shortCut: Shift-2
+    description: Longhorn node info (longhornctl)
     scopes:
       - nodes
       - node
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
-        echo "=== Longhorn Storage on Node: $NAME ==="
-        echo ""
         if command -v longhornctl >/dev/null 2>&1; then
-          longhornctl --kubeconfig $KUBECONFIG node get $NAME 2>/dev/null
+          longhornctl --kubeconfig $KUBECONFIG node get $NAME 2>/dev/null | less -K
         else
-          kubectl get nodes.longhorn.io -n longhorn-system $NAME --context $CONTEXT -o jsonpath='{
-            "Ready:         "}{.status.conditions.Ready.status}{"
-            "}{  "Schedulable:   "}{.spec.allowScheduling}{"
-            "}' 2>/dev/null || echo "  (Longhorn not installed or node not registered)"
-          echo ""
-          echo "--- Disk Status ---"
-          kubectl get nodes.longhorn.io -n longhorn-system $NAME --context $CONTEXT -o jsonpath='{range .status.diskStatus.*}  Disk: {.diskUUID}  Schedulable: {.conditions.Schedulable.status}  Storage: {.storageAvailable}/{.storageMaximum}{"\n"}{end}' 2>/dev/null
-          echo ""
-          echo "--- Volumes on This Node ---"
-          kubectl get volumes.longhorn.io -n longhorn-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,STATE:.status.state,NODE:.status.currentNodeID,SIZE:.spec.size' 2>/dev/null | grep -E "NAME|$NAME" || echo "  (no volumes)"
-        fi 
+          kubectl get node $NAME -o yaml --context $CONTEXT | less -K
+        fi

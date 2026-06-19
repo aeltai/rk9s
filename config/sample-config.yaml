@@ -1,0 +1,91 @@
+# rK9s Sample Configuration
+# Copy to: ~/.config/rk9s/config.yaml (Linux) or ~/Library/Application Support/rk9s/config.yaml (macOS)
+
+k9s:
+  # Refresh rate in seconds
+  refreshRate: 2
+  
+  # Max connection retries before giving up
+  maxConnRetry: 5
+  
+  # Read-only mode (disables edit, delete, shell)
+  readOnly: false
+  
+  # Don't exit on Ctrl-C (use :q instead)
+  noExitOnCtrlC: false
+  
+  # Skip checking for new k9s releases
+  skipLatestRevCheck: true
+  
+  # UI Settings
+  ui:
+    # Skin name (file in skins/ directory without .yaml)
+    skin: neon
+    
+    # Enable mouse support
+    enableMouse: false
+    
+    # Start without header (toggle: Ctrl-E)
+    headless: false
+    
+    # Start without logo
+    logoless: false
+    
+    # Start without breadcrumbs (toggle: Ctrl-G)
+    crumbsless: false
+    
+    # Start without splash screen
+    splashless: false
+    
+    # Hide icons (for terminals without Unicode support)
+    noIcons: false
+    
+    # Default to fullscreen for logs/describe
+    defaultsToFullScreen: false
+  
+  # Logger Settings (for :logs view)
+  logger:
+    # Number of lines to tail
+    tail: 100
+    
+    # Buffer size
+    buffer: 5000
+    
+    # Show logs since N seconds ago (-1 = all)
+    sinceSeconds: -1
+    
+    # Wrap long lines
+    textWrap: false
+    
+    # Show timestamps
+    showTime: false
+  
+  # Resource Usage Thresholds (for color indicators)
+  thresholds:
+    cpu:
+      critical: 90
+      warn: 70
+    memory:
+      critical: 90
+      warn: 70
+  
+  # Default shell pod image (for :shell on nodes)
+  shellPod:
+    image: busybox:1.37.0
+    namespace: default
+    limits:
+      cpu: 100m
+      memory: 100Mi
+  
+  # Image scanning (requires Trivy)
+  imageScans:
+    enable: false
+    exclusions:
+      namespaces: []
+      labels: {}
+  
+  # Default view on startup (empty = pods)
+  defaultView: ""
+  
+  # Port forward address
+  portForwardAddress: localhost

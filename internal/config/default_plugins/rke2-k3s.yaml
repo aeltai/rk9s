@@ -1,203 +1,15 @@
-# RKE2 / K3s plugins for rk9s
-# F3: Distro view — HelmCharts → HelmChartConfigs → UpgradePlans → Addons
-# Nodes (F5): Shift-J journalctl, Shift-I node overview, Shift-C config, Shift-V vi edit
+# RKE2 / K3s node plugins for rk9s
+# Node scope: $NAME is the node name
+# These plugins use kubectl debug for node access
 plugins:
-  # ─── Shift-I: Full Distro + Rancher KDM overview ─────────────────
-  helmchart-overview:
-    shortCut: Shift-I
-    override: true
-    description: Distro overview (Rancher KDM, versions, MachineConfigs, HelmCharts)
-    scopes:
-      - helmcharts.helm.cattle.io
-      - helmchartconfigs.helm.cattle.io
-      - plans.upgrade.cattle.io
-      - addons.k3s.cattle.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        CTX="--context ${CONTEXT}"
-        echo '╔══════════════════════════════════════════════════════════╗'
-        echo '║         RKE2 / K3s — Distro & Release Overview           ║'
-        echo '╚══════════════════════════════════════════════════════════╝'
-        echo ''
-
-        echo '── Cluster Distribution ─────────────────────────────────────'
-        VER=$(kubectl $CTX get nodes -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}' 2>/dev/null)
-        case "$VER" in *rke2*) D="RKE2";; *k3s*) D="K3s";; *) D="Unknown";; esac
-        NODES=$(kubectl $CTX get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
-        CP=$(kubectl $CTX get nodes -l node-role.kubernetes.io/control-plane= --no-headers 2>/dev/null | wc -l | tr -d ' ')
-        echo "  Distro:   $D   Running: $VER"
-        echo "  Nodes:    $NODES total   Control-planes: $CP"
-        echo ''
-
-        echo '── Rancher Server & KDM Release Info ────────────────────────'
-        R_VER=$(kubectl $CTX get settings.management.cattle.io server-version -o jsonpath='{.value}' 2>/dev/null)
-        KDM_BRANCH=$(kubectl $CTX get settings.management.cattle.io kdm-branch -o jsonpath='{.value}' 2>/dev/null)
-        RKE2_DEF=$(kubectl $CTX get settings.management.cattle.io rke2-default-version -o jsonpath='{.value}' 2>/dev/null)
-        K3S_DEF=$(kubectl $CTX get settings.management.cattle.io k3s-default-version -o jsonpath='{.value}' 2>/dev/null)
-        HELM_VER=$(kubectl $CTX get settings.management.cattle.io helm-version -o jsonpath='{.value}' 2>/dev/null)
-        K8S_RANGE=$(kubectl $CTX get settings.management.cattle.io ui-k8s-supported-versions-range -o jsonpath='{.value}' 2>/dev/null)
-        FLEET_VER=$(kubectl $CTX get settings.management.cattle.io fleet-version -o jsonpath='{.value}' 2>/dev/null)
-        echo "  Rancher:           ${R_VER:-n/a}"
-        echo "  KDM Branch:        ${KDM_BRANCH:-n/a}"
-        echo "  RKE2 Default:      ${RKE2_DEF:-n/a}"
-        echo "  K3s Default:       ${K3S_DEF:-n/a}"
-        echo "  Helm:              ${HELM_VER:-n/a}"
-        echo "  Supported k8s:     ${K8S_RANGE:-n/a}"
-        echo "  Fleet:             ${FLEET_VER:-n/a}"
-        echo ''
-
-        echo '── Upgrade Plans (plans.upgrade.cattle.io) ──────────────────'
-        kubectl $CTX get plans.upgrade.cattle.io -A \
-          -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,TARGET-VERSION:.spec.version,SELECTOR:.spec.nodeSelector.matchExpressions[0].key' \
-          2>/dev/null || echo '  (no upgrade plans)'
-        echo ''
-
-        echo '── Provisioning Clusters (MachineConfigs) ───────────────────'
-        kubectl $CTX get clusters.provisioning.cattle.io -A \
-          -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,K8S:.spec.kubernetesVersion,READY:.status.ready' \
-          2>/dev/null || echo '  (no provisioning.cattle.io clusters)'
-        echo ''
-        echo '  Machine pools & refs:'
-        kubectl $CTX get clusters.provisioning.cattle.io -A \
-          -o jsonpath='{range .items[*]}{.metadata.name}{" pools: "}{range .spec.rkeConfig.machinePools[*]}{.name}{"(qty="}{.quantity}{")"}{" "}{end}{"\n"}{end}' \
-          2>/dev/null | grep -v "^$" || echo '  (no machine pools defined)'
-        echo ''
-
-        echo '── AWS MachineConfigs (amazonec2configs) ────────────────────'
-        kubectl $CTX get amazonec2configs -A \
-          -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,INSTANCE:.spec.instanceType,REGION:.spec.region,AMI:.spec.ami' \
-          2>/dev/null || echo '  (no amazonec2configs)'
-        echo ''
-
-        echo '── HelmChart Addons ──────────────────────────────────────────'
-        kubectl $CTX get helmcharts.helm.cattle.io -A \
-          -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,CHART:.spec.chart,VERSION:.spec.version,TARGET-NS:.spec.targetNamespace' \
-          2>/dev/null | head -25 || echo '  (none)'
-        echo ''
-
-        echo '── HelmChartConfig Overrides ────────────────────────────────'
-        kubectl $CTX get helmchartconfigs.helm.cattle.io -A \
-          -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,FAILURE-POLICY:.spec.failurePolicy' \
-          2>/dev/null || echo '  (none)'
-        echo ''
-
-        echo '── K3s/RKE2 Addons ──────────────────────────────────────────'
-        kubectl $CTX get addons.k3s.cattle.io -A \
-          -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,AGE:.metadata.creationTimestamp' \
-          2>/dev/null || echo '  (no addons.k3s.cattle.io)'
-        echo ''
-
-        echo '── Disabled Components (from config.yaml) ───────────────────'
-        NODE=$(kubectl $CTX get nodes -l node-role.kubernetes.io/control-plane= -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-        if [ -n "$NODE" ]; then
-          kubectl $CTX debug "node/$NODE" -it --image=alpine:3.18 -- chroot /host sh -c '
-            for cfg in /etc/rancher/rke2/config.yaml /etc/rancher/k3s/config.yaml; do
-              [ -f "$cfg" ] || continue
-              echo "  From: $cfg"
-              echo "  CNI:      $(grep "^cni:" "$cfg" 2>/dev/null | head -1 || echo "(default)")"
-              echo "  Disabled: $(grep -A5 "^disable:" "$cfg" 2>/dev/null | grep "^\s*-" | tr -d " -" | tr "\n" " " || echo "(none)")"
-              echo "  TLS SANs: $(grep "tls-san" "$cfg" 2>/dev/null | wc -l) entry/entries"
-              break
-            done
-          ' 2>/dev/null || echo '  (debug not available)'
-        fi
-        echo ''
-
-        echo '── Actions ──────────────────────────────────────────────────'
-        echo '  ← / →     Cycle: HelmCharts · HelmChartConfigs · UpgradePlans · Addons'
-        echo '  Shift-J   Journal logs (from Nodes view)'
-        echo '  Shift-C   Full config.yaml'
-        echo '  Shift-V   Edit config.yaml (vi)'
-        echo ''   # ─── HelmChart detail ───────────────────────────────────
-  helmchart-detail:
-    shortCut: Shift-Y
-    override: true
-    description: HelmChart full YAML
-    scopes:
-      - helmcharts.helm.cattle.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        kubectl --context $CONTEXT get helmcharts.helm.cattle.io $NAME -n $NAMESPACE -o yaml 2>/dev/null   # ─── Jump to HelmChartConfig ────────────────────────────
-  helmchart-to-config:
-    shortCut: Shift-C
-    description: Jump to HelmChartConfigs
-    scopes:
-      - helmcharts.helm.cattle.io
-    command: helmchartconfigs.helm.cattle.io
-  # ─── Jump to Nodes ──────────────────────────────────────
-  helmchart-to-nodes:
-    shortCut: Shift-N
-    description: Jump to Nodes
-    scopes:
-      - helmcharts.helm.cattle.io
-    command: nodes
-  # ─── Jump to kube-system pods ───────────────────────────
-  helmchart-to-pods:
-    shortCut: Shift-P
-    description: Jump to kube-system pods
-    scopes:
-      - helmcharts.helm.cattle.io
-    command: pods
-  # ─── Node overview ───────────────────────────────────────
-  node-overview:
-    shortCut: Shift-O
-    override: true
-    description: Node overview (OS, kernel, labels, taints)
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Node: $NAME ==="
-        echo ""
-        kubectl get node $NAME --context $CONTEXT -o jsonpath='{
-          "OS:            "}{.status.nodeInfo.osImage}{"\n"}{
-          "Kernel:        "}{.status.nodeInfo.kernelVersion}{"\n"}{
-          "Kubelet:       "}{.status.nodeInfo.kubeletVersion}{"\n"}{
-          "Container RT:  "}{.status.nodeInfo.containerRuntimeVersion}{"\n"}{
-          "Architecture:  "}{.status.nodeInfo.architecture}{"\n"}{
-          "Internal IP:   "}{.status.addresses[?(@.type=="InternalIP")].address}{"\n"}{
-          "External IP:   "}{.status.addresses[?(@.type=="ExternalIP")].address}{"\n"}{
-          "Hostname:      "}{.status.addresses[?(@.type=="Hostname")].address}{"\n"}{
-          }' 2>/dev/null
-        echo ""
-        echo "--- Allocatable ---"
-        kubectl get node $NAME --context $CONTEXT -o jsonpath='{
-          "CPU:     "}{.status.allocatable.cpu}{"\n"}{
-          "Memory:  "}{.status.allocatable.memory}{"\n"}{
-          "Pods:    "}{.status.allocatable.pods}{"\n"}{
-          "Storage: "}{.status.allocatable.ephemeral-storage}{"\n"}{
-          }' 2>/dev/null
-        echo ""
-        echo "--- Labels ---"
-        kubectl get node $NAME --context $CONTEXT -o jsonpath='{range .metadata.labels}{@}{"\n"}{end}' 2>/dev/null | sort | head -30
-        echo ""
-        echo "--- Taints ---"
-        kubectl get node $NAME --context $CONTEXT -o jsonpath='{range .spec.taints[*]}  {.key}={.value}:{.effect}{"\n"}{end}' 2>/dev/null || echo "  (no taints)"
-        echo ""
-        echo "--- Conditions ---"
-        kubectl get node $NAME --context $CONTEXT -o jsonpath='{range .status.conditions[*]}  {.type}: {.status} ({.reason}){"\n"}{end}' 2>/dev/null   # ─── RKE2/K3s config.yaml ───────────────────────────────
   rke2-k3s-config:
     shortCut: Shift-C
-    description: RKE2/K3s config.yaml (full)
+    description: View RKE2/K3s config on node
     scopes:
       - node
       - nodes
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
@@ -212,17 +24,7 @@ plugins:
             cat /etc/rancher/rke2/config.yaml
             echo ""
             echo "--- RKE2 Version ---"
-            rke2 --version 2>/dev/null || echo "(cannot detect version)"
-            echo ""
-            echo "--- Server/Agent Env ---"
-            cat /etc/rancher/rke2/rke2-server.env 2>/dev/null || echo "(no server env)"
-            cat /etc/rancher/rke2/rke2-agent.env 2>/dev/null || echo "(no agent env)"
-            echo ""
-            echo "--- TLS SAN ---"
-            grep -i tls-san /etc/rancher/rke2/config.yaml 2>/dev/null || echo "(no tls-san configured)"
-            echo ""
-            echo "--- CNI Config ---"
-            ls /etc/cni/net.d/ 2>/dev/null && cat /etc/cni/net.d/*.conflist 2>/dev/null | head -30 || echo "(no CNI config)"
+            rke2 --version 2>/dev/null || cat /usr/local/share/rke2/rke2-cis-sysctl.conf 2>/dev/null || echo "(cannot detect version)"
             echo ""
             echo "--- Token Hash ---"
             sha256sum /etc/rancher/rke2/token 2>/dev/null | cut -d" " -f1 || echo "(no token file)"
@@ -234,126 +36,33 @@ plugins:
             echo ""
             echo "--- K3s Version ---"
             k3s --version 2>/dev/null || echo "(cannot detect version)"
-            echo ""
-            echo "--- Server/Agent Env ---"
-            cat /etc/systemd/system/k3s.service.env 2>/dev/null || echo "(no service env)"
-            echo ""
-            echo "--- TLS SAN ---"
-            grep -i tls-san /etc/rancher/k3s/config.yaml 2>/dev/null || echo "(no tls-san configured)"
-            echo ""
-            echo "--- CNI Config ---"
-            ls /var/lib/rancher/k3s/agent/etc/cni/net.d/ 2>/dev/null && cat /var/lib/rancher/k3s/agent/etc/cni/net.d/*.conflist 2>/dev/null | head -30 || echo "(no CNI config)"
           else
             echo "No RKE2 or K3s config found on this node"
             echo ""
             echo "Checking kubelet args..."
             cat /var/lib/kubelet/kubeadm-flags.env 2>/dev/null || echo "(not a kubeadm node either)"
           fi
-        ' 2>/dev/null   # ─── RKE2/K3s edit config ───────────────────────────────
-  rke2-k3s-edit-config:
-    shortCut: Shift-V
-    override: true
-    description: Edit RKE2/K3s config.yaml (vi)
-    confirm: true
-    dangerous: true
-    scopes:
-      - node
-      - nodes
-    command: kubectl
-    background: false
-    args:
-      - debug
-      - node/$NAME
-      - --context=$CONTEXT
-      - -it
-      - --image=alpine:3.18
-      - --
-      - chroot
-      - /host
-      - sh
-      - -c
-      - |
-        CFG=""
-        [ -f /etc/rancher/rke2/config.yaml ] && CFG=/etc/rancher/rke2/config.yaml
-        [ -f /etc/rancher/k3s/config.yaml ]  && CFG=/etc/rancher/k3s/config.yaml
-        if [ -z "$CFG" ]; then
-          echo "No RKE2/K3s config.yaml found."
-          echo "Expected: /etc/rancher/rke2/config.yaml or /etc/rancher/k3s/config.yaml"
-          exit 1
-        fi
-        vi "$CFG"
-        echo ""
-        echo "Done. Restart with: systemctl restart rke2-server (or rke2-agent / k3s)"
-  # ─── Shift-J: journalctl live log for rke2/k3s service ──────────
-  node-journal:
-    shortCut: Shift-J
-    override: true
-    description: journalctl rke2/k3s service (last 100 lines)
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Journal: $NAME ==="
-        echo ""
-        kubectl debug node/"$NAME" --context "$CONTEXT" -it --image=alpine:3.18 -- \
-          chroot /host sh -c '
-            # Detect which service is running
-            SVC=""
-            for s in rke2-server rke2-agent k3s k3s-agent; do
-              systemctl is-active "$s" >/dev/null 2>&1 && SVC="$s" && break
-            done
-            if [ -z "$SVC" ]; then
-              echo "No rke2-server / rke2-agent / k3s service found active on this node."
-              echo "Trying to show any recent rke2/k3s journal entries..."
-              journalctl -u "rke2*" -u "k3s*" --no-pager -n 60 2>/dev/null || echo "(journalctl unavailable)"
-              exit 0
-            fi
-            echo "Active service: $SVC"
-            echo ""
-            echo "─── Last 100 lines ──────────────────────────────────"
-            journalctl -u "$SVC" --no-pager -n 100 2>/dev/null
-            echo ""
-            echo "─── Errors / Warnings (last 6h) ─────────────────────"
-            journalctl -u "$SVC" --no-pager -p warning --since "6 hours ago" 2>/dev/null | tail -30
-          ' 2>/dev/null
-
-  # ─── Node services ─────────────────────────────────────
+        ' 2>/dev/null | less -K
   node-distro-services:
     shortCut: Shift-D
-    description: Node services + journal errors + containerd
+    description: Node services status (systemd)
     scopes:
       - node
       - nodes
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
         echo "=== Service Status: $NAME ==="
         echo ""
         kubectl debug node/$NAME --context $CONTEXT -it --image=alpine:3.18 -- chroot /host sh -c '
-          echo "--- Service Status ---"
           for svc in rke2-server rke2-agent k3s containerd kubelet; do
             status=$(systemctl is-active $svc 2>/dev/null)
             if [ "$status" != "unknown" ] 2>/dev/null; then
               printf "  %-20s %s\n" "$svc" "$status"
             fi
           done
-          echo ""
-          echo "--- Containerd Version ---"
-          containerd --version 2>/dev/null || /var/lib/rancher/rke2/bin/containerd --version 2>/dev/null || echo "  (containerd not found in PATH)"
-          echo ""
-          echo "--- Failed Services ---"
-          systemctl --failed --no-pager 2>/dev/null | head -20
-          echo ""
-          echo "--- Recent Journal Errors (last 20) ---"
-          journalctl -p err --no-pager -n 20 2>/dev/null || echo "  (journalctl not available)"
           echo ""
           echo "--- Disk Usage ---"
           df -h / /var/lib/rancher 2>/dev/null
@@ -363,268 +72,23 @@ plugins:
           echo ""
           echo "--- Uptime ---"
           uptime 2>/dev/null
-        ' 2>/dev/null   # ─── Restart RKE2/K3s service ───────────────────────────
-  rke2-k3s-restart:
-    shortCut: Shift-R
-    override: true
-    description: Restart RKE2/K3s service on node
-    confirm: true
-    dangerous: true
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Restart RKE2/K3s Service: $NAME ==="
-        echo ""
-        kubectl debug node/$NAME --context $CONTEXT -it --image=alpine:3.18 -- chroot /host sh -c '
-          for svc in rke2-server rke2-agent k3s; do
-            if systemctl is-active $svc >/dev/null 2>&1; then
-              echo "Restarting $svc ..."
-              systemctl restart $svc 2>&1
-              echo ""
-              echo "--- Status After Restart ---"
-              systemctl status $svc --no-pager 2>&1 | head -15
-              exit 0
-            fi
-          done
-          echo "No RKE2/K3s service found running on this node."
-        ' 2>/dev/null   # ─── Show RKE2/K3s component disable list ───────────────
-  rke2-k3s-components:
-    shortCut: Shift-M
-    override: true
-    description: HelmChart addons and disabled components
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== RKE2/K3s Components ==="
-        echo ""
-        echo "--- HelmChart Addons (kube-system) ---"
-        kubectl get helmcharts.helm.cattle.io -n kube-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,CHART:.spec.chart,VERSION:.spec.version,NS:.spec.targetNamespace' 2>/dev/null || echo "  (no HelmChart CRDs)"
-        echo ""
-        echo "--- HelmChartConfig (overrides) ---"
-        kubectl get helmchartconfigs.helm.cattle.io -n kube-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,NS:.spec.targetNamespace' 2>/dev/null || echo "  (no HelmChartConfig CRDs)"
-        echo ""
-        echo "--- Addons Manifests Dir (from node) ---"
-        kubectl debug node/$NAME --context $CONTEXT -it --image=alpine:3.18 -- chroot /host sh -c '
-          for d in /var/lib/rancher/rke2/server/manifests /var/lib/rancher/k3s/server/manifests; do
-            if [ -d "$d" ]; then
-              echo "  $d:"
-              ls -la "$d" 2>/dev/null
-              break
-            fi
-          done
-        ' 2>/dev/null
-        echo ""
-        echo "--- Disabled Components (from config.yaml) ---"
-        kubectl debug node/$NAME --context $CONTEXT -it --image=alpine:3.18 -- chroot /host sh -c '
-          for cfg in /etc/rancher/rke2/config.yaml /etc/rancher/k3s/config.yaml; do
-            if [ -f "$cfg" ]; then
-              grep -A20 "^disable:" "$cfg" 2>/dev/null || echo "  (none disabled)"
-              break
-            fi
-          done
-        ' 2>/dev/null   # ─── Show cluster-cidr, service-cidr, dns ───────────────
-  rke2-k3s-networking:
-    shortCut: Shift-K
-    override: true
-    description: Cluster networking (CIDR, DNS, CNI)
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Cluster Networking ==="
-        echo ""
-        echo "--- From config.yaml on node: $NAME ---"
-        kubectl debug node/$NAME --context $CONTEXT -it --image=alpine:3.18 -- chroot /host sh -c '
-          for cfg in /etc/rancher/rke2/config.yaml /etc/rancher/k3s/config.yaml; do
-            if [ -f "$cfg" ]; then
-              echo "Config: $cfg"
-              echo ""
-              for key in cluster-cidr service-cidr cluster-dns cluster-domain cni bind-address https-listen-port tls-san write-kubeconfig-mode; do
-                val=$(grep "^${key}:" "$cfg" 2>/dev/null)
-                if [ -n "$val" ]; then
-                  echo "  $val"
-                fi
-              done
-              # Also check multi-line tls-san
-              grep -A10 "^tls-san:" "$cfg" 2>/dev/null | head -12
-              break
-            fi
-          done
-        ' 2>/dev/null
-        echo ""
-        echo "--- From API ---"
-        echo "  Pod CIDR:     $(kubectl cluster-info dump --context $CONTEXT 2>/dev/null | grep -m1 cluster-cidr | head -1 || echo 'n/a')"
-        echo "  Service CIDR: $(kubectl cluster-info dump --context $CONTEXT 2>/dev/null | grep -m1 service-cluster-ip-range | head -1 || echo 'n/a')"
-        echo "  Cluster DNS:  $(kubectl get svc -n kube-system --context $CONTEXT 2>/dev/null | grep dns)"
-        echo ""
-        echo "--- CNI Pods ---"
-        kubectl get pods -n kube-system --context $CONTEXT -l 'k8s-app in (canal,calico-node,cilium,flannel,kube-proxy)' -o wide 2>/dev/null || echo "  (no CNI pods detected)"   # ─── crictl ─────────────────────────────────────────────
+        ' 2>/dev/null | less -K
   crictl-ps:
     shortCut: Shift-P
-    description: crictl ps – containers sorted by memory
+    description: crictl ps – running containers on node
     scopes:
       - node
       - nodes
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
         echo "=== Containers on Node: $NAME ==="
         echo ""
         kubectl debug node/$NAME --context $CONTEXT -it --image=alpine:3.18 -- chroot /host sh -c '
-          echo "--- Running Containers ---"
           crictl ps --output table 2>/dev/null || echo "crictl not available"
           echo ""
-          echo "--- Container Resource Usage (sorted by memory) ---"
-          crictl stats --output table 2>/dev/null | head -1
-          crictl stats --output table 2>/dev/null | tail -n +2 | sort -k4 -h -r | head -30
-          echo ""
-          echo "--- Images (top 20 by size) ---"
-          crictl images --output table 2>/dev/null | head -1
-          crictl images --output table 2>/dev/null | tail -n +2 | sort -k4 -h -r | head -20
-        ' 2>/dev/null   # ─── Node drain/uncordon ────────────────────────────────
-  node-drain:
-    shortCut: Shift-W
-    override: true
-    description: Drain node (evict pods)
-    confirm: true
-    dangerous: true
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Draining Node: $NAME ==="
-        echo ""
-        kubectl drain $NAME --context $CONTEXT --ignore-daemonsets --delete-emptydir-data 2>&1
-        echo ""
-        echo "Node status:"
-        kubectl get node $NAME --context $CONTEXT -o wide 2>/dev/null
-  node-uncordon:
-    shortCut: Shift-U
-    override: true
-    description: Uncordon node
-    confirm: true
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Uncordoning Node: $NAME ==="
-        kubectl uncordon $NAME --context $CONTEXT 2>&1
-        echo ""
-        kubectl get node $NAME --context $CONTEXT -o wide 2>/dev/null
-  # ─── Node taints/labels ─────────────────────────────────
-  node-taints:
-    shortCut: Shift-T
-    description: Node taints
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Taints on Node: $NAME ==="
-        echo ""
-        kubectl get node $NAME --context $CONTEXT -o jsonpath='{range .spec.taints[*]}  {.key}={.value}:{.effect}{"\n"}{end}' 2>/dev/null || echo "  (no taints)"
-  node-labels:
-    shortCut: Shift-L
-    override: true
-    description: Node labels
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Labels on Node: $NAME ==="
-        echo ""
-        kubectl get node $NAME --context $CONTEXT -o json 2>/dev/null | python3 -c "
-        import sys, json
-        d = json.load(sys.stdin)
-        for k, v in sorted(d.get('metadata',{}).get('labels',{}).items()):
-          print(f'  {k}={v}')
-        " 2>/dev/null || kubectl get node $NAME --context $CONTEXT -o jsonpath='{.metadata.labels}'   # ─── Rancher SSH from node view ─────────────────────────
-  rancher-ssh-node:
-    shortCut: Shift-S
-    override: true
-    description: Rancher SSH into node
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    args:
-      - -c
-      - |
-        if command -v rancher >/dev/null 2>&1; then
-          echo "Connecting via rancher SSH to $NAME..."
-          rancher ssh $NAME 2>/dev/null || echo "SSH not available for this node (custom nodes not supported by rancher ssh)"
-        else
-          echo "rancher CLI not found. Use: kubectl debug node/$NAME -it --image=alpine:3.18 -- sh"
-        fi
-  # ─── Longhorn node storage ─────────────────────────────
-  longhorn-node-storage:
-    shortCut: Shift-G
-    override: true
-    description: Longhorn node storage info
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== Longhorn Storage on Node: $NAME ==="
-        echo ""
-        echo "--- Longhorn Node ---"
-        kubectl get nodes.longhorn.io -n longhorn-system $NAME --context $CONTEXT -o jsonpath='{
-          "Ready:         "}{.status.conditions.Ready.status}{"
-          "}{  "Schedulable:   "}{.spec.allowScheduling}{"
-          "}{  "Region:        "}{.status.region}{"
-          "}{  "Zone:          "}{.status.zone}{"
-          "}' 2>/dev/null || echo "  (Longhorn not installed or node not registered)"
-        echo ""
-        echo "--- Disk Status ---"
-        kubectl get nodes.longhorn.io -n longhorn-system $NAME --context $CONTEXT -o jsonpath='{range .status.diskStatus.*}  Disk: {.diskUUID}  Schedulable: {.conditions.Schedulable.status}  Storage: {.storageAvailable}/{.storageMaximum}{"\n"}{end}' 2>/dev/null
-        echo ""
-        echo "--- Volumes on This Node ---"
-        kubectl get volumes.longhorn.io -n longhorn-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,STATE:.status.state,NODE:.status.currentNodeID,SIZE:.spec.size' 2>/dev/null | grep -E "NAME|$NAME" || echo "  (no volumes on this node)"
-        echo ""
-        echo "--- Replicas on This Node ---"
-        kubectl get replicas.longhorn.io -n longhorn-system --context $CONTEXT -o custom-columns='NAME:.metadata.name,VOLUME:.spec.volumeName,STATE:.status.currentState' 2>/dev/null | grep -E "NAME|$NAME" | head -20 || echo "  (no replicas)" 
+          echo "--- Images ---"
+          crictl images --output table 2>/dev/null | head -20 || echo "crictl not available"
+        ' 2>/dev/null | less -K

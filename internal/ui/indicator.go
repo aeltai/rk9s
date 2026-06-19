@@ -47,20 +47,16 @@ func (s *StatusIndicator) StylesChanged(styles *config.Styles) {
 	s.SetTextColor(styles.FgColor())
 }
 
-const statusIndicatorFmt = "[%s::b]K9s [%s::]%s [%s::]%s:%s:%s [%s::]%s[%s::]::[%s::]%s"
+// Compact format: ⎈ctx cpu/mem
+const statusIndicatorFmt = "[%s::b]⎈%s [%s::]%s[%s::]/[%s::]%s"
 
 // ClusterInfoUpdated notifies the cluster meta was updated.
 func (s *StatusIndicator) ClusterInfoUpdated(data *model.ClusterMeta) {
 	s.app.QueueUpdateDraw(func() {
 		s.SetPermanent(fmt.Sprintf(
 			statusIndicatorFmt,
-			s.styles.Body().LogoColor.String(),
-			s.styles.K9s.Info.K9sRevColor.String(),
-			data.K9sVer,
 			s.styles.K9s.Info.FgColor.String(),
 			data.Context,
-			data.Cluster,
-			data.K8sVer,
 			s.styles.K9s.Info.CPUColor.String(),
 			render.PrintPerc(data.Cpu),
 			s.styles.Body().FgColor.String(),
@@ -78,13 +74,8 @@ func (s *StatusIndicator) ClusterInfoChanged(prev, cur *model.ClusterMeta) {
 	s.app.QueueUpdateDraw(func() {
 		s.SetPermanent(fmt.Sprintf(
 			statusIndicatorFmt,
-			s.styles.Body().LogoColor.String(),
-			s.styles.K9s.Info.K9sRevColor.String(),
-			cur.K9sVer,
 			s.styles.K9s.Info.FgColor.String(),
 			cur.Context,
-			cur.Cluster,
-			cur.K8sVer,
 			s.styles.K9s.Info.CPUColor.String(),
 			AsPercDelta(prev.Cpu, cur.Cpu),
 			s.styles.Body().FgColor.String(),

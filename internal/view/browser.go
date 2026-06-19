@@ -192,56 +192,38 @@ func (b *Browser) Start() {
 }
 
 func (b *Browser) addCRDGroupKeys() {
-	aliasKey := gvrToAliasKey(b.GVR().String())
-	if _, ok := crdGroupIndex[aliasKey]; !ok {
+	aliasKey := aliasKeyForTab(b.GVR().String(), b.GetModel().GetLabelSelector())
+	if !ecosystemNav.InGroup(aliasKey) {
 		return
 	}
-	b.GetTable().TabHint = crdTabHint(b.GVR().String())
+	b.GetTable().TabHint = crdTabHintFromAlias(aliasKey)
 	b.Actions().Add(tcell.KeyRight, ui.NewKeyAction("→ Next Tab", b.nextCRDCmd, true))
 	b.Actions().Add(tcell.KeyLeft, ui.NewKeyAction("← Prev Tab", b.prevCRDCmd, true))
 }
 
 func (b *Browser) nextCRDCmd(*tcell.EventKey) *tcell.EventKey {
-	aliasKey := gvrToAliasKey(b.GVR().String())
-	entry := crdGroupIndex[aliasKey]
-	grp := crdGroups[entry.group]
-	// Skip entries that aren't installed in the current cluster.
-	for step := 1; step < len(grp); step++ {
-		candidate := grp[(entry.pos+step)%len(grp)]
-		navCmd, labelSel, _ := parseCRDEntry(candidate)
-		if b.app.command.CanResolve(navCmd) {
-			b.app.gotoResource(navCmd, "", true, true)
-			b.applyCRDLabelFilter(labelSel)
-			return nil
-		}
-	}
-	b.App().Flash().Warnf("No other CRDs in this group are installed on the current cluster")
-	return nil
+	return b.cycleCRDCmd(1)
 }
 
 func (b *Browser) prevCRDCmd(*tcell.EventKey) *tcell.EventKey {
-	aliasKey := gvrToAliasKey(b.GVR().String())
-	entry := crdGroupIndex[aliasKey]
-	grp := crdGroups[entry.group]
-	for step := 1; step < len(grp); step++ {
-		candidate := grp[(entry.pos-step+len(grp))%len(grp)]
-		navCmd, labelSel, _ := parseCRDEntry(candidate)
-		if b.app.command.CanResolve(navCmd) {
-			b.app.gotoResource(navCmd, "", true, true)
-			b.applyCRDLabelFilter(labelSel)
-			return nil
-		}
+	return b.cycleCRDCmd(-1)
+}
+
+func (b *Browser) cycleCRDCmd(dir int) *tcell.EventKey {
+	aliasKey := aliasKeyForTab(b.GVR().String(), b.GetModel().GetLabelSelector())
+	navCmd, labelSel, ok := ecosystemNav.Candidate(aliasKey, dir, b.app.command.CanResolve)
+	if !ok {
+		b.App().Flash().Warnf("No other CRDs in this group are installed on the current cluster")
+		return nil
 	}
-	b.App().Flash().Warnf("No other CRDs in this group are installed on the current cluster")
+	b.app.gotoResource(navCmd, "", true, true)
+	b.applyCRDLabelFilter(labelSel)
 	return nil
 }
 
 // applyCRDLabelFilter applies an optional label selector to the newly navigated-to
 // browser view (the current top of the content stack).
 func (b *Browser) applyCRDLabelFilter(labelSel string) {
-	if labelSel == "" {
-		return
-	}
 	top := b.app.Content.Top()
 	if top == nil {
 		return
@@ -250,11 +232,17 @@ func (b *Browser) applyCRDLabelFilter(labelSel string) {
 	if !ok {
 		return
 	}
+	if labelSel == "" {
+		nb.SetLabelSelector(labels.Everything(), true)
+		nb.addCRDGroupKeys()
+		return
+	}
 	sel, err := labels.Parse(labelSel)
 	if err != nil {
 		return
 	}
 	nb.SetLabelSelector(sel, true)
+	nb.addCRDGroupKeys()
 }
 
 func (b *Browser) activateMultiContext() {

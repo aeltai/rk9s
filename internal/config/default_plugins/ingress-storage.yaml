@@ -7,7 +7,6 @@ plugins:
       - ingressroutes
     command: kubectl
     background: false
-    inView: true
     args:
       - get
       - ingressroute
@@ -25,30 +24,11 @@ plugins:
       - virtualservers
     command: kubectl
     background: false
-    inView: true
     args:
       - get
       - virtualserver
       - -n
       - $NAMESPACE
-      - $NAME
-      - -o
-      - yaml
-      - --context
-      - $CONTEXT
-  longhorn-volume:
-    shortCut: Shift-V
-    description: Describe Longhorn Volume
-    scopes:
-      - volumes.longhorn.io
-    command: kubectl
-    background: false
-    inView: true
-    args:
-      - get
-      - volume
-      - -n
-      - longhorn-system
       - $NAME
       - -o
       - yaml
@@ -61,7 +41,6 @@ plugins:
       - helmcharts
     command: kubectl
     background: false
-    inView: true
     args:
       - get
       - helmchart

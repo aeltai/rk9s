@@ -1,0 +1,61 @@
+// Zellij layout for rk9s - futuristic terminal multiplexer setup
+// Usage: zellij -l path/to/rk9s.kdl
+
+layout {
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+
+    // Main rk9s tab with cluster status header
+    tab name="⎈ rk9s" focus=true {
+        pane split_direction="vertical" {
+            // Cluster status bar (1 line)
+            pane size=1 borderless=true command="bash" {
+                args "-c" "~/.local/bin/k8s-status.sh 2>/dev/null || echo '⎈ rk9s'"
+            }
+            // Main rk9s pane
+            pane command="rk9s" focus=true {
+                args "--logoless"
+            }
+        }
+    }
+
+    // Kubectl shell tab
+    tab name="▶ kubectl" {
+        pane command="bash" {
+            args "-c" "echo '⎈ kubectl shell ready'; exec bash"
+        }
+    }
+
+    // Logs tab (for kubectl logs -f)
+    tab name="◉ logs" {
+        pane split_direction="vertical" {
+            pane command="bash" {
+                args "-c" "echo '◉ Pod logs viewer - use: kubectl logs -f <pod>'; exec bash"
+            }
+        }
+    }
+}
+
+// Theme configuration for futuristic look
+themes {
+    rk9s {
+        fg "#c0caf5"
+        bg "#1a1b26"
+        black "#15161e"
+        red "#f7768e"
+        green "#9ece6a"
+        yellow "#e0af68"
+        blue "#7aa2f7"
+        magenta "#bb9af7"
+        cyan "#7dcfff"
+        white "#a9b1d6"
+        orange "#ff9e64"
+    }
+}
+
+// Apply the theme
+theme "rk9s"

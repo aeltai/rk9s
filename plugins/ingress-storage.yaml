@@ -34,23 +34,6 @@ plugins:
       - yaml
       - --context
       - $CONTEXT
-  longhorn-volume:
-    shortCut: Shift-V
-    description: Describe Longhorn Volume
-    scopes:
-      - volumes.longhorn.io
-    command: kubectl
-    background: false
-    args:
-      - get
-      - volume
-      - -n
-      - longhorn-system
-      - $NAME
-      - -o
-      - yaml
-      - --context
-      - $CONTEXT
   helmchart-status:
     shortCut: Shift-H
     description: HelmChart CRD status

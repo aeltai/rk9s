@@ -92,35 +92,3 @@ plugins:
           echo "--- Images ---"
           crictl images --output table 2>/dev/null | head -20 || echo "crictl not available"
         ' 2>/dev/null | less -K
-  etcdctl-health:
-    shortCut: Shift-E
-    description: etcdctl endpoint health + status
-    scopes:
-      - node
-      - nodes
-    command: bash
-    background: false
-    args:
-      - -c
-      - |
-        echo "=== etcd Health: $NAME ==="
-        echo ""
-        kubectl debug node/$NAME --context $CONTEXT -it --image=alpine:3.18 -- chroot /host sh -c '
-          export ETCDCTL_ENDPOINTS=https://127.0.0.1:2379
-          export ETCDCTL_CACERT=/var/lib/rancher/rke2/server/tls/etcd/server-ca.crt
-          export ETCDCTL_CERT=/var/lib/rancher/rke2/server/tls/etcd/server-client.crt
-          export ETCDCTL_KEY=/var/lib/rancher/rke2/server/tls/etcd/server-client.key
-          if [ ! -f "$ETCDCTL_CACERT" ]; then
-            export ETCDCTL_CACERT=/etc/kubernetes/pki/etcd/ca.crt
-            export ETCDCTL_CERT=/etc/kubernetes/pki/etcd/server.crt
-            export ETCDCTL_KEY=/etc/kubernetes/pki/etcd/server.key
-          fi
-          echo "--- Endpoint Health ---"
-          etcdctl endpoint health 2>/dev/null || echo "etcdctl not found or certs not available (this may not be a control-plane node)"
-          echo ""
-          echo "--- Endpoint Status ---"
-          etcdctl endpoint status --write-out=table 2>/dev/null
-          echo ""
-          echo "--- Member List ---"
-          etcdctl member list --write-out=table 2>/dev/null
-        ' 2>/dev/null | less -K

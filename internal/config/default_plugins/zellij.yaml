@@ -1,0 +1,80 @@
+# Zellij integration plugins for rk9s
+# Launch Zellij sessions from within k9s for multi-pane workflows
+
+plugins:
+  # Launch Zellij with rk9s layout (suspends k9s)
+  zellij-session:
+    shortCut: Ctrl-Z
+    description: Zellij session (Ctrl-D to return)
+    scopes:
+      - all
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        clear
+        echo "Launching Zellij... Press Ctrl-D or type 'exit' to return to rk9s"
+        echo ""
+        if [ -f ~/.config/zellij/layouts/rk9s-multi.kdl ]; then
+          zellij -l ~/.config/zellij/layouts/rk9s-multi.kdl
+        else
+          zellij
+        fi
+
+  # Quick kubectl in new Zellij pane (for current resource)
+  zellij-kubectl:
+    shortCut: Shift-Z
+    description: Zellij + kubectl for resource
+    scopes:
+      - pods
+      - deployments
+      - services
+      - nodes
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        clear
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        
+        # Create a temp script for the Zellij session
+        SCRIPT=$(mktemp)
+        cat > "$SCRIPT" << 'EOFSCRIPT'
+        layout {
+            pane split_direction="horizontal" {
+                pane size="60%" command="bash" {
+                    args "-c" "kubectl CTXARG get RESOURCE NAME -n NAMESPACE -o yaml | less; exec bash"
+                }
+                pane command="bash" {
+                    args "-c" "echo '=== kubectl shell for RESOURCE/NAME ==='; exec bash"
+                }
+            }
+        }
+        EOFSCRIPT
+        
+        # Substitute variables
+        sed -i '' "s|CTXARG|$CTX|g; s|RESOURCE|$RESOURCE_NAME|g; s|NAME|$NAME|g; s|NAMESPACE|$NAMESPACE|g" "$SCRIPT" 2>/dev/null || \
+        sed "s|CTXARG|$CTX|g; s|RESOURCE|$RESOURCE_NAME|g; s|NAME|$NAME|g; s|NAMESPACE|$NAMESPACE|g" "$SCRIPT" > "${SCRIPT}.tmp" && mv "${SCRIPT}.tmp" "$SCRIPT"
+        
+        zellij -l "$SCRIPT"
+        rm -f "$SCRIPT"
+
+  # Debug pod with logs + shell in Zellij
+  zellij-debug-pod:
+    shortCut: Shift-D
+    description: Debug pod (logs + shell in Zellij)
+    scopes:
+      - pods
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        
+        zellij run --floating -- bash -c "kubectl $CTX logs -f $NAME -n $NAMESPACE" &
+        zellij run -- bash -c "kubectl $CTX exec -it $NAME -n $NAMESPACE -- sh || kubectl $CTX exec -it $NAME -n $NAMESPACE -- bash || echo 'No shell available'"

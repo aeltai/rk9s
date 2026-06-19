@@ -155,35 +155,27 @@ func (h *Help) build() {
 // F-keys are shown in the dedicated bottom bar, not here.
 func (h *Help) showRk9s() model.MenuHints {
 	return model.MenuHints{
-		// -- Global --
-		{Mnemonic: "Shift-I", Description: "Overview dashboard [per view]"},
-		{Mnemonic: "←/→", Description: "Cycle CRDs [per view]"},
-		{Mnemonic: ":rk9s", Description: "Status & CLI check"},
-		{Mnemonic: ":home", Description: "Home dashboard"},
-		{Mnemonic: ":rke2k3s", Description: "RKE2/K3s config info"},
-		{Mnemonic: ":etcd", Description: "etcd health info"},
-		// -- Rancher [clusters.mgmt.cattle.io] --
-		{Mnemonic: "Shift-O", Description: "Cluster overview [rancher]"},
-		{Mnemonic: "Shift-R", Description: "RBAC [rancher]"},
-		{Mnemonic: "Shift-K", Description: "Gen kubeconfig [rancher]"},
-		{Mnemonic: "Shift-S", Description: "SSH node [rancher/nodes]"},
-		// -- Fleet [gitrepos/bundles] --
-		{Mnemonic: "Shift-G", Description: "GitRepo status [gitrepos]"},
-		{Mnemonic: "Shift-S", Description: "Suspend [gitrepos]"},
-		{Mnemonic: "Shift-U", Description: "Resume [gitrepos]"},
-		// -- Longhorn [volumes.longhorn.io] --
-		{Mnemonic: "Shift-C", Description: "Create snapshot [volumes]"},
-		{Mnemonic: "Shift-B", Description: "List snapshots [volumes]"},
-		{Mnemonic: "Shift-K", Description: "Create backup [volumes]"},
-		// -- KubeVirt [vm/vmi] --
-		{Mnemonic: "Shift-S", Description: "Console [vm/vmi]"},
-		{Mnemonic: "Shift-W", Description: "Start VM [vm]"},
-		{Mnemonic: "Shift-X", Description: "Stop VM [vm/vmi]"},
-		// -- Nodes --
-		{Mnemonic: "Shift-O", Description: "Node overview [nodes]"},
-		{Mnemonic: "Shift-C", Description: "RKE2/K3s config [nodes]"},
-		{Mnemonic: "Shift-E", Description: "etcdctl health [nodes]"},
-		{Mnemonic: "Shift-W", Description: "Drain node [nodes]"},
+		// ── Navigation ──
+		{Mnemonic: "←/→", Description: "Cycle tabs in group"},
+		{Mnemonic: "F1-F10", Description: "Quick nav (see bar)"},
+		// ── Dashboards ──
+		{Mnemonic: ":home/:etcd/:rke2k3s", Description: "Info dashboards"},
+		// ── Pods/Deploy ──
+		{Mnemonic: "Shift-H", Description: "Quick diagnosis"},
+		{Mnemonic: "Shift-Q", Description: "Deep analysis"},
+		{Mnemonic: "Shift-A", Description: "AI prompt gen"},
+		// ── Nodes ──
+		{Mnemonic: "Shift-C/D/P", Description: "Config/Services/Crictl"},
+		// ── etcd ──
+		{Mnemonic: "Shift-E/N/A", Description: "Health/Endpoint/Alarm"},
+		// ── Rancher ──
+		{Mnemonic: "Shift-O/K", Description: "Overview/Kubeconfig"},
+		// ── Fleet ──
+		{Mnemonic: "Shift-G/R", Description: "GitRepo status/Resync"},
+		// ── Longhorn ──
+		{Mnemonic: "Shift-L/S/B", Description: "List/Snapshot/Backup"},
+		// ── K3k ──
+		{Mnemonic: "Shift-I/K/S", Description: "Info/Kubeconfig/Scale"},
 	}
 }
 

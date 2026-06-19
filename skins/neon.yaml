@@ -1,0 +1,130 @@
+# -----------------------------------------------------------------------------
+# Neon Futuristic skin for rk9s
+# Transparent bg, bright accents, clean modern look
+# -----------------------------------------------------------------------------
+
+# Palette
+bg: &bg "default"
+surface: &surface "#1a1b26"
+panel: &panel "#24283b"
+fg: &fg "#c0caf5"
+fg_dim: &fg_dim "#565f89"
+fg_bright: &fg_bright "#ffffff"
+
+# Neon accents
+cyan: &cyan "#7dcfff"
+magenta: &magenta "#bb9af7"
+green: &green "#9ece6a"
+blue: &blue "#7aa2f7"
+orange: &orange "#ff9e64"
+red: &red "#f7768e"
+yellow: &yellow "#e0af68"
+teal: &teal "#73daca"
+pink: &pink "#ff007c"
+
+k9s:
+  body:
+    fgColor: *fg
+    bgColor: *bg
+    logoColor: *cyan
+    logoColorMsg: *magenta
+    logoColorInfo: *teal
+    logoColorWarn: *orange
+    logoColorError: *red
+
+  prompt:
+    fgColor: *fg_bright
+    bgColor: *bg
+    suggestColor: *cyan
+    border:
+      command: *magenta
+      default: *fg_dim
+
+  help:
+    fgColor: *fg
+    bgColor: *bg
+    sectionColor: *cyan
+    keyColor: *magenta
+    numKeyColor: *teal
+
+  info:
+    fgColor: *cyan
+    sectionColor: *fg_bright
+
+  dialog:
+    fgColor: *fg
+    bgColor: *panel
+    buttonFgColor: *bg
+    buttonBgColor: *cyan
+    buttonFocusFgColor: *bg
+    buttonFocusBgColor: *magenta
+    labelFgColor: *orange
+    fieldFgColor: *fg_bright
+
+  frame:
+    border:
+      fgColor: *fg_dim
+      focusColor: *cyan
+    menu:
+      fgColor: *fg
+      keyColor: *cyan
+      numKeyColor: *magenta
+    crumbs:
+      fgColor: *fg_bright
+      bgColor: *panel
+      activeColor: *cyan
+    status:
+      newColor: *cyan
+      modifyColor: *magenta
+      addColor: *green
+      errorColor: *red
+      highlightColor: *orange
+      killColor: *fg_dim
+      completedColor: *teal
+    title:
+      fgColor: *fg_bright
+      bgColor: *panel
+      highlightColor: *cyan
+      counterColor: *magenta
+      filterColor: *teal
+
+  views:
+    charts:
+      bgColor: *bg
+      defaultDialColors:
+        - *cyan
+        - *magenta
+      defaultChartColors:
+        - *cyan
+        - *magenta
+        - *green
+        - *orange
+    table:
+      fgColor: *fg
+      bgColor: *bg
+      cursorFgColor: *bg
+      cursorBgColor: *cyan
+      markColor: *magenta
+      header:
+        fgColor: *cyan
+        bgColor: *bg
+        sorterColor: *magenta
+    xray:
+      fgColor: *fg
+      bgColor: *bg
+      cursorColor: *panel
+      cursorTextColor: *fg_bright
+      graphicColor: *cyan
+      showIcons: true
+    yaml:
+      keyColor: *cyan
+      colonColor: *magenta
+      valueColor: *fg
+    logs:
+      fgColor: *fg
+      bgColor: *bg
+      indicator:
+        fgColor: *bg
+        bgColor: *cyan
+        toggleOnColor: *green
+        toggleOffColor: *magenta

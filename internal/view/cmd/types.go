@@ -82,5 +82,8 @@ var (
 		"etcd",
 		"home",
 		"rke2k3s",
+		"k3k",
+		"kubewarden",
+		"releases",
 	)
 )

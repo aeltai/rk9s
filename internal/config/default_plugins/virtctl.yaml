@@ -1,8 +1,7 @@
 # virtctl plugins for rk9s – KubeVirt / Harvester VM management
 # Requires: virtctl (https://kubevirt.io/user-guide/user_workloads/virtctl_client_tool/)
-# Navigation: F5 for KubeVirt VMs view, Left/Right arrow to cycle CRDs
+# Scoped to virtualmachines.kubevirt.io (vm) and virtualmachineinstances.kubevirt.io (vmi)
 plugins:
-  # ─── VM lifecycle ────────────────────────────────────────
   virtctl-console:
     shortCut: Shift-S
     description: VM serial console
@@ -21,6 +20,7 @@ plugins:
           harvester vm shell $NAME -n ${NAMESPACE:-default}
         else
           echo "Install virtctl: https://kubevirt.io/user-guide/user_workloads/virtctl_client_tool/"
+          echo "  virtctl console $NAME -n ${NAMESPACE:-default}"
         fi
   virtctl-vnc:
     shortCut: Shift-V
@@ -37,6 +37,7 @@ plugins:
           virtctl vnc $NAME -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG
         else
           echo "Install virtctl: https://kubevirt.io/user-guide/user_workloads/virtctl_client_tool/"
+          echo "  virtctl vnc $NAME -n ${NAMESPACE:-default}"
         fi
   virtctl-start:
     shortCut: Shift-W
@@ -46,7 +47,6 @@ plugins:
       - virtualmachines.kubevirt.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
@@ -65,7 +65,6 @@ plugins:
       - virtualmachineinstances.kubevirt.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
@@ -84,32 +83,13 @@ plugins:
       - virtualmachineinstances.kubevirt.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
         if command -v virtctl >/dev/null 2>&1; then
           virtctl restart $NAME -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG
         else
-          echo "virtctl required for restart."
-        fi
-  virtctl-soft-reboot:
-    shortCut: Shift-B
-    description: Soft reboot VM (graceful)
-    confirm: true
-    scopes:
-      - virtualmachines.kubevirt.io
-      - virtualmachineinstances.kubevirt.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if command -v virtctl >/dev/null 2>&1; then
-          virtctl soft-reboot $NAME -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG
-        else
-          echo "virtctl required for soft-reboot."
+          echo "virtctl required for restart. Install: https://kubevirt.io/user-guide/user_workloads/virtctl_client_tool/"
         fi
   virtctl-pause:
     shortCut: Shift-P
@@ -120,14 +100,13 @@ plugins:
       - virtualmachineinstances.kubevirt.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
         if command -v virtctl >/dev/null 2>&1; then
           virtctl pause vm $NAME -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG
         else
-          echo "virtctl required for pause."
+          echo "virtctl required for pause. Install: https://kubevirt.io/user-guide/user_workloads/virtctl_client_tool/"
         fi
   virtctl-unpause:
     shortCut: Shift-Q
@@ -138,16 +117,14 @@ plugins:
       - virtualmachineinstances.kubevirt.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
         if command -v virtctl >/dev/null 2>&1; then
           virtctl unpause vm $NAME -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG
         else
-          echo "virtctl required for unpause."
+          echo "virtctl required for unpause. Install: https://kubevirt.io/user-guide/user_workloads/virtctl_client_tool/"
         fi
-  # ─── VM connectivity ─────────────────────────────────────
   virtctl-ssh:
     shortCut: Shift-Y
     description: SSH into VM
@@ -165,88 +142,8 @@ plugins:
           virtctl ssh ${user}@vmi/${NAME} -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG
         else
           echo "Install virtctl: https://kubevirt.io/user-guide/user_workloads/virtctl_client_tool/"
+          echo "  virtctl ssh root@vmi/$NAME -n ${NAMESPACE:-default}"
         fi
-  virtctl-expose:
-    shortCut: Shift-F
-    override: true
-    description: Expose VM (create service)
-    scopes:
-      - virtualmachines.kubevirt.io
-      - virtualmachineinstances.kubevirt.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if ! command -v virtctl >/dev/null 2>&1; then
-          echo "virtctl required for expose."
-          exit 1
-        fi
-        echo "=== Expose VM: $NAME ==="
-        echo ""
-        echo "Enter port to expose (e.g., 22 for SSH, 80 for HTTP):"
-        read -r PORT
-        if [ -n "$PORT" ]; then
-          SVC_NAME="${NAME}-svc-${PORT}"
-          echo "Creating service $SVC_NAME for port $PORT..."
-          virtctl expose vm $NAME --name "$SVC_NAME" --port "$PORT" -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG 2>&1
-          echo ""
-          echo "Service created:"
-          kubectl get svc "$SVC_NAME" -n ${NAMESPACE:-default} --context $CONTEXT -o wide 2>/dev/null
-        fi
-  # ─── VM disk management ──────────────────────────────────
-  virtctl-addvolume:
-    shortCut: Shift-A
-    override: true
-    description: Add hotplug volume to VM
-    confirm: true
-    scopes:
-      - virtualmachines.kubevirt.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if ! command -v virtctl >/dev/null 2>&1; then
-          echo "virtctl required."
-          exit 1
-        fi
-        echo "=== Available PVCs ==="
-        kubectl get pvc -n ${NAMESPACE:-default} --context $CONTEXT -o custom-columns='NAME:.metadata.name,STATUS:.status.phase,SIZE:.spec.resources.requests.storage' 2>/dev/null
-        echo ""
-        echo "Enter PVC name to hotplug (or Ctrl-C to cancel):"
-        read -r PVC
-        if [ -n "$PVC" ]; then
-          virtctl addvolume $NAME --volume-name="$PVC" -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG 2>&1
-        fi
-  virtctl-removevolume:
-    shortCut: Shift-R
-    override: true
-    description: Remove hotplug volume from VM
-    confirm: true
-    scopes:
-      - virtualmachines.kubevirt.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if ! command -v virtctl >/dev/null 2>&1; then
-          echo "virtctl required."
-          exit 1
-        fi
-        echo "=== Volumes on VM: $NAME ==="
-        kubectl get vm $NAME -n ${NAMESPACE:-default} --context $CONTEXT -o jsonpath='{range .spec.template.spec.volumes[*]}{.name}{"\t"}{.persistentVolumeClaim.claimName}{"\n"}{end}' 2>/dev/null
-        echo ""
-        echo "Enter volume name to remove (or Ctrl-C to cancel):"
-        read -r VOL
-        if [ -n "$VOL" ]; then
-          virtctl removevolume $NAME --volume-name="$VOL" -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG 2>&1
-        fi
-  # ─── VM info ─────────────────────────────────────────────
   virtctl-guestosinfo:
     shortCut: Shift-I
     description: Guest OS info (needs agent)
@@ -255,7 +152,6 @@ plugins:
       - virtualmachineinstances.kubevirt.io
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
@@ -270,4 +166,5 @@ plugins:
           virtctl userlist $NAME -n ${NAMESPACE:-default} --kubeconfig=$KUBECONFIG 2>&1
         else
           echo "virtctl required for guest agent queries."
+          echo "Install: https://kubevirt.io/user-guide/user_workloads/virtctl_client_tool/"
         fi

@@ -1,0 +1,69 @@
+// Zellij multi-pane layout for rk9s power users
+// Split view: rk9s main + kubectl + watch panel
+// Usage: zellij -l path/to/rk9s-multi.kdl
+
+layout {
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+
+    tab name="⎈ Cluster" focus=true {
+        pane split_direction="horizontal" {
+            // Main rk9s pane with status header (70% width)
+            pane size="70%" split_direction="vertical" {
+                pane size=1 borderless=true command="bash" {
+                    args "-c" "~/.local/bin/k8s-status.sh 2>/dev/null || echo '⎈ cluster status'"
+                }
+                pane command="rk9s" focus=true {
+                    args "--logoless"
+                    name "rk9s"
+                }
+            }
+            // Right sidebar
+            pane split_direction="vertical" {
+                // kubectl shell
+                pane command="bash" {
+                    args "-c" "echo '▶ kubectl shell'; exec bash"
+                    name "kubectl"
+                }
+                // Watch panel for live updates
+                pane command="bash" {
+                    args "-c" "echo '◉ watch panel'; echo 'Try: watch kubectl get pods -A'; exec bash"
+                    name "watch"
+                }
+            }
+        }
+    }
+
+    tab name="◫ Debug" {
+        pane split_direction="horizontal" {
+            pane size="50%" command="bash" {
+                args "-c" "echo '◫ Debug pane 1'; exec bash"
+            }
+            pane command="bash" {
+                args "-c" "echo '◫ Debug pane 2'; exec bash"
+            }
+        }
+    }
+}
+
+themes {
+    rk9s {
+        fg "#c0caf5"
+        bg "#1a1b26"
+        black "#15161e"
+        red "#f7768e"
+        green "#9ece6a"
+        yellow "#e0af68"
+        blue "#7aa2f7"
+        magenta "#bb9af7"
+        cyan "#7dcfff"
+        white "#a9b1d6"
+        orange "#ff9e64"
+    }
+}
+
+theme "rk9s"

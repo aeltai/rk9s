@@ -775,55 +775,76 @@ func (a *App) rk9sCmd() {
 		ctxInfo = strings.Join(sel, ", ")
 	}
 	script := fmt.Sprintf(`
-echo '╔══════════════════════════════════════════════════╗'
-echo '║              rk9s status                          ║'
-echo '╚══════════════════════════════════════════════════╝'
+echo '╔═══════════════════════════════════════════════════════════╗'
+echo '║                    rk9s Status                             ║'
+echo '║           SUSE Rancher Ecosystem Navigator                 ║'
+echo '╚═══════════════════════════════════════════════════════════╝'
 echo ''
-echo '=== CLI Availability ==='
-for cli in rancher virtctl longhornctl kwctl fleet harvester kubectl; do
+echo '┌─ CLI Tools ───────────────────────────────────────────────┐'
+for cli in kubectl helm rancher fleet virtctl longhornctl kwctl etcdctl k3k crictl jq; do
   p=$(command -v "$cli" 2>/dev/null)
   if [ -n "$p" ]; then
-    ver=$("$cli" version --client 2>/dev/null || "$cli" --version 2>/dev/null || "$cli" version 2>/dev/null || echo "installed")
-    printf '  %%-14s ✓  %%s\n' "$cli" "$(echo "$ver" | head -1)"
+    ver=$("$cli" version --client 2>/dev/null || "$cli" --version 2>/dev/null || "$cli" version 2>/dev/null | head -1 || echo "ok")
+    printf '│ ✓ %%-12s %%s\n' "$cli" "$(echo "$ver" | head -c 40)"
   else
-    printf '  %%-14s ✗  not found\n' "$cli"
+    printf '│ ✗ %%-12s (not found)\n' "$cli"
   fi
 done
+echo '└──────────────────────────────────────────────────────────┘'
 echo ''
-echo '=== Plugin Directory ==='
+echo '┌─ F-Key Navigation ───────────────────────────────────────┐'
+echo '│  F1  ◈ Dashboards   F2  ⎈ Rancher     F3  ⚙ Distro      │'
+echo '│  F4  ◉ etcd snaps   F5  ▣ Nodes       F6  ⇉ Fleet       │'
+echo '│  F7  ▤ Longhorn     F8  ◫ VMs         F9  ℹ Info        │'
+echo '│  F10 ⊛ Contexts     ←/→ Cycle tabs   Shift-I Overview   │'
+echo '└──────────────────────────────────────────────────────────┘'
+echo ''
+echo '┌─ Dashboards (:command) ──────────────────────────────────┐'
+echo '│  :home        Home dashboard (F1)                        │'
+echo '│  :etcd        etcd health, members, alarms               │'
+echo '│  :rke2k3s     RKE2/K3s cluster config                    │'
+echo '│  :k3k         K3k virtual clusters                       │'
+echo '│  :kubewarden  Kubewarden policy status                   │'
+echo '│  :releases    GitHub releases (Rancher/Harvester/LH)     │'
+echo '│  :rk9s        This status view (F9)                      │'
+echo '└──────────────────────────────────────────────────────────┘'
+echo ''
+echo '┌─ Quick Resources ────────────────────────────────────────┐'
+echo '│  :clusters.management.cattle.io    Rancher clusters      │'
+echo '│  :gitrepos.fleet.cattle.io         Fleet GitRepos        │'
+echo '│  :volumes.longhorn.io              Longhorn volumes      │'
+echo '│  :virtualmachines.kubevirt.io      KubeVirt VMs          │'
+echo '│  :clusteradmissionpolicies         Kubewarden policies   │'
+echo '│  :clusters.k3k.io                  K3k clusters          │'
+echo '│  :etcdsnapshots.rke.cattle.io      etcd snapshots        │'
+echo '└──────────────────────────────────────────────────────────┘'
+echo ''
+echo '┌─ AI & Debug Tools ─────────────────────────────────────────┐'
+echo '│  Shift-H   Quick diagnosis (events, logs, conditions)     │'
+echo '│  Shift-Q   Deep analysis (describe, yaml, full logs)      │'
+echo '│  Shift-A   Generate AI prompt (copies to clipboard)       │'
+echo '│  Editor:   ${K9S_EDITOR:-${EDITOR:-vi}} (set K9S_EDITOR)  │'
+echo '└──────────────────────────────────────────────────────────┘'
+echo ''
+echo '┌─ Multi-Context (F10 / :contexts) ────────────────────────┐'
+echo '│  Space      Toggle context selection                     │'
+echo '│  Ctrl-A     Select all contexts                          │'
+echo '│  Selected:  %s'
+echo '└──────────────────────────────────────────────────────────┘'
+echo ''
+echo '┌─ Plugins (%s) ─┐'
 pdir="%s"
 if [ -d "$pdir" ]; then
-  printf '  %%s\n' "$pdir"
-  ls -1 "$pdir"/*.yaml 2>/dev/null | while read f; do printf '    %%s\n' "$(basename "$f")"; done
+  count=$(ls -1 "$pdir"/*.yaml 2>/dev/null | wc -l | tr -d ' ')
+  echo "│  $count plugin files loaded"
+  echo "│  Key plugins: etcd, longhorn, rancher, fleet, kubewarden, k3k"
 else
-  echo '  (not found)'
+  echo '│  (plugin directory not found)'
 fi
+echo '└──────────────────────────────────────────────────────────┘'
 echo ''
-echo '=== Quick Navigation (type command to open) ==='
-echo '  :volumes.longhorn.io              Longhorn volumes (interactive)'
-echo '  :gitrepos.fleet.cattle.io         Fleet GitRepos (interactive)'
-echo '  :clusters.management.cattle.io    Rancher clusters (interactive)'
-echo '  :virtualmachines.kubevirt.io      Harvester VMs (interactive)'
-echo '  :etcd                             etcd health / members / alarms'
-echo '  Press Shift-I in any view above for aggregated overview'
-echo ''
-echo '=== Navigation Hotkeys ==='
-echo '  F1  Home Dashboard             F6   Nodes'
-echo '  F2  Longhorn Volumes           F7   RKE2/K3s HelmCharts'
-echo '  F3  Fleet GitRepos             F8   etcd Snapshots'
-echo '  F4  Rancher Clusters           F9   rk9s Status'
-echo '  F5  KubeVirt VMs               F10  Contexts (multi-select)'
-echo '  Shift-I  Overview dashboard (in any view above)'
-echo '  ?        Full Help'
-echo ''
-echo '=== Quick Info Dashboards ==='
-echo '  :rke2k3s   RKE2/K3s cluster config overview'
-echo '  :etcd      etcd health, members, fragmentation'
-echo ''
-echo '=== Multi-Context (from :contexts view / F10) ==='
-echo '  Space    Toggle context selection'
-echo '  Ctrl-A   Select all contexts'
-`, pluginDir(config.AppName))
+echo '  Press ? for full help  │  Shift-I for view overview'
+`, ctxInfo, config.AppName, pluginDir(config.AppName))
 	a.runDashScript("rk9s", ctxInfo, script)
 }
 
@@ -890,28 +911,28 @@ echo ''
 echo '=== Ecosystem Components ==='
 %s
 echo ''
-echo '=== Navigation (F-Keys) ==='
-echo '  F1  Home Dashboard             F6   Nodes'
-echo '  F2  Longhorn Volumes           F7   RKE2/K3s HelmCharts'
-echo '  F3  Fleet GitRepos             F8   etcd Snapshots'
-echo '  F4  Rancher Clusters           F9   rk9s Status'
-echo '  F5  KubeVirt VMs               F10  Contexts'
+echo '=== F-Key Navigation ==='
+echo '  F1  ◈ Dashboards (←/→ Home·RKE2/K3s·etcd·K3k·KW·Releases)'
+echo '  F2  ⎈ Rancher      F3  ⚙ Distro       F4  ◉ etcd snaps'
+echo '  F5  ▣ Nodes        F6  ⇉ Fleet        F7  ▤ Longhorn'
+echo '  F8  ◫ VMs          F9  ℹ Info         F10 ⊛ Contexts'
 echo ''
 echo '  Shift-I  Overview dashboard (within any view)'
 echo '  ?        Full help and plugin shortcuts'
 echo ''
-echo '=== Quick Commands ==='
-echo '  :pods                             Pods'
-echo '  :deploy                           Deployments'
-echo '  :svc                              Services'
-echo '  :volumes.longhorn.io              Longhorn Volumes'
-echo '  :gitrepos.fleet.cattle.io         Fleet GitRepos'
-echo '  :clusters.management.cattle.io    Rancher Clusters'
-echo '  :virtualmachines.kubevirt.io      KubeVirt VMs'
-echo '  :helmcharts.helm.cattle.io        RKE2/K3s HelmCharts'
-echo '  :etcdsnapshots.rke.cattle.io      etcd Snapshots'
-echo '  :rke2k3s                          RKE2/K3s Info (dashboard)'
-echo '  :etcd                             etcd Info (dashboard)'
+echo '=== Dashboards ==='
+echo '  :home        Home (F1)           :etcd       etcd health'
+echo '  :rke2k3s     RKE2/K3s config     :k3k        K3k clusters'
+echo '  :kubewarden  Policy status       :releases   GitHub releases'
+echo ''
+echo '=== Quick Resources ==='
+echo '  :pods        :deploy      :svc           :ns'
+echo '  :clusters.management.cattle.io           Rancher'
+echo '  :gitrepos.fleet.cattle.io                Fleet'
+echo '  :volumes.longhorn.io                     Longhorn'
+echo '  :virtualmachines.kubevirt.io             VMs'
+echo '  :clusteradmissionpolicies                Kubewarden'
+echo '  :clusters.k3k.io                         K3k'
 `,
 		a.Config.K9s.ActiveContextName(),
 		subject,
@@ -1110,6 +1131,15 @@ func (a *App) rk9sDashboard(name string) {
 	case "rke2k3s":
 		a.rk9sRke2K3sDashboard()
 		return
+	case "k3k":
+		a.rk9sK3kDashboard()
+		return
+	case "kubewarden":
+		a.rk9sKubewardenDashboard()
+		return
+	case "releases":
+		a.rk9sReleasesDashboard()
+		return
 	case "etcd":
 		ctxs, subject := a.dashContexts()
 		a.runDashScript("etcd", subject, fmt.Sprintf(`
@@ -1194,6 +1224,140 @@ echo '  Shift-F  etcd defrag           Shift-A  etcd alarm disarm'
 			ctxListArg(ctxs),
 		))
 	}
+}
+
+func (a *App) rk9sK3kDashboard() {
+	ctxs, subject := a.dashContexts()
+	a.runDashScript("K3k", subject, fmt.Sprintf(`
+echo '=== K3k Dashboard (Kubernetes-in-Kubernetes) ==='
+echo 'Contexts: %s'
+echo ''
+echo '--- K3k Clusters ---'
+%s
+echo ''
+echo '--- K3k Cluster Status ---'
+for _ctx in %s; do
+  echo "  [$_ctx]"
+  kubectl --context "$_ctx" get clusters.k3k.io -A -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,VERSION:.spec.version,SERVERS:.spec.servers,AGENTS:.spec.agents,READY:.status.ready' 2>/dev/null || echo '    (no K3k clusters or CRD not installed)'
+done
+echo ''
+echo '--- K3k Pods ---'
+%s
+echo ''
+echo '--- K3k Server Nodes (per cluster) ---'
+for _ctx in %s; do
+  echo "  [$_ctx]"
+  for _cluster in $(kubectl --context "$_ctx" get clusters.k3k.io -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' 2>/dev/null); do
+    _ns=$(echo "$_cluster" | cut -d/ -f1)
+    _name=$(echo "$_cluster" | cut -d/ -f2)
+    echo "    cluster: $_name (ns: $_ns)"
+    kubectl --context "$_ctx" -n "$_ns" get pods -l "cluster.k3k.io/cluster-name=$_name,cluster.k3k.io/role=server" -o wide 2>/dev/null | head -10 || echo '      (no server pods)'
+  done
+done
+echo ''
+echo 'Commands:'
+echo '  :clusters.k3k.io    K3k virtual clusters'
+echo '  :pods k3k-system    K3k controller pods'
+`,
+		subject,
+		mcKubectl(ctxs, "get clusters.k3k.io -A 2>/dev/null || echo '  (K3k CRD not installed)'"),
+		ctxListArg(ctxs),
+		mcKubectl(ctxs, "-n k3k-system get pods 2>/dev/null || echo '  (k3k-system namespace not found)'"),
+		ctxListArg(ctxs),
+	))
+}
+
+func (a *App) rk9sKubewardenDashboard() {
+	ctxs, subject := a.dashContexts()
+	a.runDashScript("Kubewarden", subject, fmt.Sprintf(`
+echo '=== Kubewarden Dashboard ==='
+echo 'Contexts: %s'
+echo ''
+echo '--- Policy Servers ---'
+%s
+echo ''
+echo '--- Cluster Admission Policies ---'
+%s
+echo ''
+echo '--- Admission Policies (namespaced) ---'
+%s
+echo ''
+echo '--- Policy Server Status ---'
+for _ctx in %s; do
+  echo "  [$_ctx]"
+  kubectl --context "$_ctx" get policyservers.policies.kubewarden.io -o custom-columns='NAME:.metadata.name,REPLICAS:.spec.replicas,SERVICE:.status.service,READY:.status.conditions[?(@.type=="PolicyServerSecretReconciled")].status' 2>/dev/null || echo '    (no policy servers)'
+done
+echo ''
+echo '--- Controller Pods ---'
+%s
+echo ''
+echo '--- Policy Reports ---'
+%s
+echo ''
+echo 'Commands:'
+echo '  :clusteradmissionpolicies.policies.kubewarden.io   Cluster policies'
+echo '  :admissionpolicies.policies.kubewarden.io          Namespaced policies'
+echo '  :policyservers.policies.kubewarden.io              Policy servers'
+`,
+		subject,
+		mcKubectl(ctxs, "get policyservers.policies.kubewarden.io 2>/dev/null || echo '  (Kubewarden not installed)'"),
+		mcKubectl(ctxs, "get clusteradmissionpolicies.policies.kubewarden.io -o custom-columns='NAME:.metadata.name,POLICY:.spec.module,MODE:.spec.mode,STATUS:.status.policyStatus' 2>/dev/null || echo '  (none)'"),
+		mcKubectl(ctxs, "get admissionpolicies.policies.kubewarden.io -A -o custom-columns='NAMESPACE:.metadata.namespace,NAME:.metadata.name,POLICY:.spec.module,MODE:.spec.mode' 2>/dev/null || echo '  (none)'"),
+		ctxListArg(ctxs),
+		mcKubectl(ctxs, "-n kubewarden get pods 2>/dev/null || kubectl -n cattle-kubewarden-system get pods 2>/dev/null || echo '  (controller pods not found)'"),
+		mcKubectl(ctxs, "get policyreports.wgpolicyk8s.io -A --no-headers 2>/dev/null | head -10 || echo '  (no policy reports)'"),
+	))
+}
+
+func (a *App) rk9sReleasesDashboard() {
+	a.runDashScript("Releases", "SUSE Rancher Ecosystem", `
+echo '=== SUSE Rancher Ecosystem Releases ==='
+echo ''
+echo '--- Rancher ---'
+curl -sL "https://api.github.com/repos/rancher/rancher/releases?per_page=5" 2>/dev/null | \
+  jq -r '.[] | "  \(.tag_name)  \(.published_at | split("T")[0])  \(.prerelease | if . then "(pre)" else "" end)"' 2>/dev/null || \
+  echo '  (failed to fetch – check network)'
+echo ''
+echo '--- Harvester ---'
+curl -sL "https://api.github.com/repos/harvester/harvester/releases?per_page=5" 2>/dev/null | \
+  jq -r '.[] | "  \(.tag_name)  \(.published_at | split("T")[0])  \(.prerelease | if . then "(pre)" else "" end)"' 2>/dev/null || \
+  echo '  (failed to fetch)'
+echo ''
+echo '--- Longhorn ---'
+curl -sL "https://api.github.com/repos/longhorn/longhorn/releases?per_page=5" 2>/dev/null | \
+  jq -r '.[] | "  \(.tag_name)  \(.published_at | split("T")[0])  \(.prerelease | if . then "(pre)" else "" end)"' 2>/dev/null || \
+  echo '  (failed to fetch)'
+echo ''
+echo '--- RKE2 ---'
+curl -sL "https://api.github.com/repos/rancher/rke2/releases?per_page=5" 2>/dev/null | \
+  jq -r '.[] | "  \(.tag_name)  \(.published_at | split("T")[0])  \(.prerelease | if . then "(pre)" else "" end)"' 2>/dev/null || \
+  echo '  (failed to fetch)'
+echo ''
+echo '--- K3s ---'
+curl -sL "https://api.github.com/repos/k3s-io/k3s/releases?per_page=5" 2>/dev/null | \
+  jq -r '.[] | "  \(.tag_name)  \(.published_at | split("T")[0])  \(.prerelease | if . then "(pre)" else "" end)"' 2>/dev/null || \
+  echo '  (failed to fetch)'
+echo ''
+echo '--- Fleet ---'
+curl -sL "https://api.github.com/repos/rancher/fleet/releases?per_page=5" 2>/dev/null | \
+  jq -r '.[] | "  \(.tag_name)  \(.published_at | split("T")[0])  \(.prerelease | if . then "(pre)" else "" end)"' 2>/dev/null || \
+  echo '  (failed to fetch)'
+echo ''
+echo '--- Kubewarden ---'
+curl -sL "https://api.github.com/repos/kubewarden/kubewarden-controller/releases?per_page=5" 2>/dev/null | \
+  jq -r '.[] | "  \(.tag_name)  \(.published_at | split("T")[0])  \(.prerelease | if . then "(pre)" else "" end)"' 2>/dev/null || \
+  echo '  (failed to fetch)'
+echo ''
+echo '--- K3k ---'
+curl -sL "https://api.github.com/repos/rancher/k3k/releases?per_page=5" 2>/dev/null | \
+  jq -r '.[] | "  \(.tag_name)  \(.published_at | split("T")[0])  \(.prerelease | if . then "(pre)" else "" end)"' 2>/dev/null || \
+  echo '  (failed to fetch)'
+echo ''
+echo 'Links:'
+echo '  https://github.com/rancher/rancher/releases'
+echo '  https://github.com/harvester/harvester/releases'
+echo '  https://github.com/longhorn/longhorn/releases'
+`)
 }
 
 func (a *App) dirCmd(path string, pushCmd bool) error {

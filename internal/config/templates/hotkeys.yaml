@@ -1,11 +1,11 @@
 # rk9s hotkeys – interactive views & dashboards
 # Auto-synced by rk9s on startup. Press ? to see all shortcuts.
 #
-# F1       Home dashboard (contexts, CLIs, stats, ecosystem)
+# F1       Dashboards — ←/→ cycles Home · RKE2/K3s · etcd · K3k · KW · Releases
 # F2       Rancher Clusters (management.cattle.io/v3)
-# F3       Distro – RKE2/K3s HelmCharts
-# F4       etcd Control Planes (enriched node view: INT-IP, MACHINE, OS-VER, ETCD-MEMBER, LAST-SNAP)
-# F5       Nodes (enriched: INT-IP, MACHINE, OS-VER + tabs: Nodes → NodePools → Machines)
+# F3       Distro resources — ←/→ cycles Addons · HelmCharts · HelmCfg · Upgrades
+# F4       etcd Snapshots
+# F5       Nodes — ←/→ cycles All · CP · Workers · NodePools · Machines · MachDeploy
 # F6       Fleet GitRepos
 # F7       Longhorn Volumes
 # F8       KubeVirt / Harvester VMs
@@ -18,7 +18,7 @@
 hotKeys:
   rk9s-home:
     shortCut: F1
-    description: Home Dashboard
+    description: Dashboards
     command: home
   rk9s-rancher:
     shortCut: F2
@@ -26,12 +26,12 @@ hotKeys:
     command: clusters.management.cattle.io
   rk9s-distro:
     shortCut: F3
-    description: Distro (RKE2/K3s)
-    command: helmcharts.helm.cattle.io
+    description: Distro Resources
+    command: addons.k3s.cattle.io
   rk9s-etcd:
     shortCut: F4
-    description: etcd Control Planes
-    command: nodes node-role.kubernetes.io/control-plane=true
+    description: etcd Snapshots
+    command: etcdsnapshots.rke.cattle.io
   rk9s-nodes:
     shortCut: F5
     description: Nodes

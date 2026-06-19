@@ -14,6 +14,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/derailed/k9s/internal/config/data"
+	"github.com/derailed/k9s/internal/rk9s"
 	"github.com/derailed/k9s/internal/slogs"
 	"gopkg.in/yaml.v3"
 )
@@ -353,17 +354,14 @@ func EnsureDefaultHotkeys() error {
 	if AppHotKeysFile == "" {
 		return nil
 	}
-	rk9sHotkeys := map[string]HotKey{
-		"rk9s-home":      {ShortCut: "F1", Override: true, Description: "Home Dashboard", Command: "home"},
-		"rk9s-rancher":   {ShortCut: "F2", Override: true, Description: "Rancher Clusters", Command: "clusters.management.cattle.io"},
-		"rk9s-distro":    {ShortCut: "F3", Override: true, Description: "Distro (RKE2/K3s)", Command: "helmcharts.helm.cattle.io"},
-		"rk9s-etcd":      {ShortCut: "F4", Override: true, Description: "etcd Control Planes", Command: "nodes node-role.kubernetes.io/control-plane=true"},
-		"rk9s-nodes":     {ShortCut: "F5", Override: true, Description: "Nodes", Command: "nodes"},
-		"rk9s-fleet":     {ShortCut: "F6", Override: true, Description: "Fleet GitRepos", Command: "gitrepos.fleet.cattle.io"},
-		"rk9s-longhorn":  {ShortCut: "F7", Override: true, Description: "Longhorn Volumes", Command: "volumes.longhorn.io"},
-		"rk9s-harvester": {ShortCut: "F8", Override: true, Description: "KubeVirt VMs", Command: "virtualmachines.kubevirt.io"},
-		"rk9s-status":    {ShortCut: "F9", Override: true, Description: "rk9s Status", Command: "rk9s"},
-		"rk9s-contexts":  {ShortCut: "F10", Override: true, Description: "Contexts", Command: "context"},
+	rk9sHotkeys := make(map[string]HotKey, len(rk9s.DefaultHotkeys())+3)
+	for _, hk := range rk9s.DefaultHotkeys() {
+		rk9sHotkeys[hk.ID] = HotKey{
+			ShortCut:    hk.ShortCut,
+			Override:    true,
+			Description: hk.Description,
+			Command:     hk.Command,
+		}
 	}
 
 	existing := NewHotKeys()

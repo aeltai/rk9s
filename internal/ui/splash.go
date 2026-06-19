@@ -11,25 +11,34 @@ import (
 	"github.com/derailed/tview"
 )
 
-// LogoSmall rk9s small logo — shown in the top-left header while running.
+// LogoSmall rk9s small logo — shown in the header while running.
+// Minimal 2-line version for less visual noise.
 var LogoSmall = []string{
 	`rK9s`,
-	`────────────────────`,
-	`SUSE Rancher · K8s  `,
-	`Opinionated TUI     `,
+	`⎈ rancher`,
+	``,
+	``,
 	``,
 	``,
 }
 
-// LogoBig rk9s big logo for splash page.
+// LogoBig rk9s big logo for splash page — ASCII art colored as the Sudan flag.
 var LogoBig = []string{
-	``,
-	`  rK9s`,
-	`  ─────────────────────────────`,
-	`  SUSE Rancher · Kubernetes TUI`,
-	`  Opinionated multi-cluster ops`,
-	``,
+	`        _  _______      `,
+	`  _ __ | |/ / _ \ ___  `,
+	` | '__|| ' /(_) / __| `,
+	` | |   | . \ _ \\__ \ `,
+	` |_|   |_|\_\(_)/___/ `,
+	`                       `,
 }
+
+// Sudan flag palette (red, white, black-as-gray, green).
+const (
+	sudanRed   = "#d21034"
+	sudanWhite = "#ffffff"
+	sudanBlack = "#7a7a7a"
+	sudanGreen = "#007229"
+)
 
 // Splash represents a splash screen.
 type Splash struct {
@@ -58,23 +67,27 @@ func NewSplash(styles *config.Styles, version string) *Splash {
 	return &s
 }
 
-func (*Splash) layoutLogo(t *tview.TextView, styles *config.Styles) {
-	c := styles.Body().LogoColor
+func (*Splash) layoutLogo(t *tview.TextView, _ *config.Styles) {
+	// Color the ASCII art as the Sudan flag: red, white, black, green stripes.
+	stripe := []string{sudanRed, sudanRed, sudanWhite, sudanBlack, sudanGreen, sudanGreen}
 	_, _ = fmt.Fprintf(t, "%s", strings.Repeat("\n", 2))
 	for i, line := range LogoBig {
-		if i == 1 && len(line) > 3 {
-			// "  rK9s" — color 'r' green, 'K9s' in logo color
-			_, _ = fmt.Fprintf(t, "[%s::b]%s[green::b]r[%s::b]%s", c, line[:2], c, line[3:])
-		} else {
-			_, _ = fmt.Fprintf(t, "[%s::b]%s", c, line)
+		color := sudanGreen
+		if i < len(stripe) {
+			color = stripe[i]
 		}
+		_, _ = fmt.Fprintf(t, "[%s::b]%s", color, line)
 		if i+1 < len(LogoBig) {
 			_, _ = fmt.Fprintf(t, "\n")
 		}
 	}
 	_, _ = fmt.Fprintf(t, "\n")
+	// Title line: rK9s - aeltai (Sudan colors)
+	_, _ = fmt.Fprintf(t, "[%s::b]r[%s::b]K[%s::b]9[%s::b]s [%s::]- [%s::b]aeltai\n",
+		sudanRed, sudanWhite, sudanBlack, sudanGreen, sudanWhite, sudanGreen)
 }
 
 func (*Splash) layoutRev(t *tview.TextView, rev string, styles *config.Styles) {
-	_, _ = fmt.Fprintf(t, "[%s::b]Revision [red::b]%s", styles.Body().FgColor, rev)
+	_, _ = fmt.Fprintf(t, "[%s::b]⎈ SUSE Rancher Ecosystem  [%s::]Rev [%s::b]%s",
+		styles.Body().FgColor, styles.Body().FgColor, sudanRed, rev)
 }

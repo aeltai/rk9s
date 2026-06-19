@@ -81,7 +81,7 @@ plugins:
           kubectl get snapshots.longhorn.io -n longhorn-system --context $CONTEXT -l longhornvolume=$NAME -o wide 2>/dev/null | less -K
         fi
   longhorn-node-info:
-    shortCut: Shift-G
+    shortCut: Shift-2
     description: Longhorn node info (longhornctl)
     scopes:
       - nodes

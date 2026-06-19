@@ -1,138 +1,131 @@
-# Kubewarden CLI (kwctl) plugins for rk9s
-# Requires: kwctl (https://github.com/kubewarden/kwctl/releases)
-# Install: brew install kubewarden/kubewarden/kwctl  OR download from GitHub releases
-# Tabs: 1=ClusterAdmissionPolicies 2=AdmissionPolicies 3=PolicyServers
+# Kubewarden plugins for rk9s
+# Policy enforcement and security for Kubernetes
+#
+# Dashboards:
+#   :kubewarden         Policy servers, policies, and reports
+#   :releases           GitHub releases (includes Kubewarden)
+#
+# Tab navigation (→/←):
+#   ClusterPolicies ↔ Policies ↔ PolicyServers ↔ Reports
+
 plugins:
-  # CRD cycling via Left/Right arrow keys is built-in
-  kwctl-policies:
-    shortCut: Shift-P
-    description: List downloaded Kubewarden policies
-    scopes:
-      - clusteradmissionpolicies.policies.kubewarden.io
-      - admissionpolicies.policies.kubewarden.io
-      - policyservers.policies.kubewarden.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        if command -v kwctl >/dev/null 2>&1; then
-          kwctl policies 2>&1
-        else
-          echo "kwctl not installed."
-          echo "Install: brew install kubewarden/kubewarden/kwctl"
-        fi
-  kwctl-inspect-policy:
+  # --- Cluster Admission Policies ---
+  kubewarden-policy-status:
     shortCut: Shift-I
-    description: Inspect Kubewarden policy
+    description: Policy status overview
     scopes:
-      - clusteradmissionpolicies.policies.kubewarden.io
-      - admissionpolicies.policies.kubewarden.io
+      - clusteradmissionpolicies
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
-        url=$(kubectl get clusteradmissionpolicy $NAME -o jsonpath='{.spec.module}' --context $CONTEXT 2>/dev/null)
-        if [ -z "$url" ]; then
-          url=$(kubectl get admissionpolicy -n $NAMESPACE $NAME -o jsonpath='{.spec.module}' --context $CONTEXT 2>/dev/null)
-        fi
-        if [ -n "$url" ] && command -v kwctl >/dev/null 2>&1; then
-          kwctl inspect registry://${url#registry:} 2>/dev/null || kwctl inspect $url 2>/dev/null || echo "Policy: $url - run: kwctl inspect <policy-uri>"
+        clear
+        echo "=== Cluster Admission Policy: $NAME ==="
+        echo ""
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        echo "--- Policy Details ---"
+        kubectl $CTX get clusteradmissionpolicies.policies.kubewarden.io "$NAME" -o yaml | head -50
+        echo ""
+        echo "--- Policy Status ---"
+        kubectl $CTX get clusteradmissionpolicies.policies.kubewarden.io "$NAME" -o jsonpath='{.status}' | jq . 2>/dev/null || echo "(no status)"
+        echo ""
+        echo "--- Related Policy Reports ---"
+        kubectl $CTX get policyreports.wgpolicyk8s.io -A --no-headers 2>/dev/null | grep -i "$NAME" | head -10 || echo "(no reports)"
+        echo ""
+        echo "Press Enter to continue..."
+        read -r
+
+  kubewarden-policy-mode:
+    shortCut: Shift-M
+    description: Toggle protect/monitor mode
+    scopes:
+      - clusteradmissionpolicies
+    command: bash
+    background: false
+    confirm: true
+    args:
+      - -c
+      - |
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        MODE=$(kubectl $CTX get clusteradmissionpolicies.policies.kubewarden.io "$NAME" -o jsonpath='{.spec.mode}')
+        if [ "$MODE" = "protect" ]; then
+          NEW_MODE="monitor"
         else
-          echo "Could not get policy module from CR, or kwctl not installed."
+          NEW_MODE="protect"
         fi
-  kwctl-scaffold-manifest:
+        echo "Switching $NAME from $MODE to $NEW_MODE..."
+        kubectl $CTX patch clusteradmissionpolicies.policies.kubewarden.io "$NAME" --type=merge -p "{\"spec\":{\"mode\":\"$NEW_MODE\"}}"
+        echo "Done. New mode: $NEW_MODE"
+
+  # --- Policy Servers ---
+  kubewarden-server-status:
+    shortCut: Shift-I
+    description: Policy server overview
+    scopes:
+      - policyservers
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        clear
+        echo "=== Policy Server: $NAME ==="
+        echo ""
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        echo "--- Server Config ---"
+        kubectl $CTX get policyservers.policies.kubewarden.io "$NAME" -o yaml | head -40
+        echo ""
+        echo "--- Server Pods ---"
+        kubectl $CTX get pods -A -l "app=kubewarden-policy-server-$NAME" 2>/dev/null || echo "(no pods found)"
+        echo ""
+        echo "--- Assigned Policies ---"
+        kubectl $CTX get clusteradmissionpolicies.policies.kubewarden.io -o jsonpath='{range .items[?(@.spec.policyServer=="'$NAME'")]}{.metadata.name}{"\n"}{end}' 2>/dev/null || echo "(none)"
+        echo ""
+        echo "Press Enter to continue..."
+        read -r
+
+  kubewarden-server-scale:
     shortCut: Shift-S
-    override: true
-    description: Scaffold policy manifest
+    description: Scale policy server
     scopes:
-      - clusteradmissionpolicies.policies.kubewarden.io
-      - admissionpolicies.policies.kubewarden.io
+      - policyservers
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
-        url=$(kubectl get clusteradmissionpolicy $NAME -o jsonpath='{.spec.module}' --context $CONTEXT 2>/dev/null)
-        if [ -z "$url" ]; then
-          url=$(kubectl get admissionpolicy -n $NAMESPACE $NAME -o jsonpath='{.spec.module}' --context $CONTEXT 2>/dev/null)
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        CURRENT=$(kubectl $CTX get policyservers.policies.kubewarden.io "$NAME" -o jsonpath='{.spec.replicas}')
+        echo "Current replicas: $CURRENT"
+        echo -n "New replica count: "
+        read -r NEW
+        if [ -n "$NEW" ]; then
+          kubectl $CTX patch policyservers.policies.kubewarden.io "$NAME" --type=merge -p "{\"spec\":{\"replicas\":$NEW}}"
+          echo "Scaled to $NEW replicas"
         fi
-        if [ -n "$url" ] && command -v kwctl >/dev/null 2>&1; then
-          uri=${url#registry:}
-          kwctl scaffold manifest registry://$uri --type ClusterAdmissionPolicy -o /tmp/kw-$NAME.yaml 2>/dev/null && cat /tmp/kw-$NAME.yaml || echo "Failed to scaffold."
-        else
-          echo "Could not get policy module or kwctl not installed."
-        fi
-  kwctl-verify-policy:
-    shortCut: Shift-V
-    override: true
-    description: Verify policy signatures
+
+  # --- Policy Reports ---
+  kubewarden-report-details:
+    shortCut: Shift-I
+    description: Report details
     scopes:
-      - clusteradmissionpolicies.policies.kubewarden.io
-      - admissionpolicies.policies.kubewarden.io
+      - policyreports
     command: bash
     background: false
-    inView: true
     args:
       - -c
       - |
-        url=$(kubectl get clusteradmissionpolicy $NAME -o jsonpath='{.spec.module}' --context $CONTEXT 2>/dev/null)
-        if [ -z "$url" ]; then
-          url=$(kubectl get admissionpolicy -n $NAMESPACE $NAME -o jsonpath='{.spec.module}' --context $CONTEXT 2>/dev/null)
-        fi
-        if [ -n "$url" ] && command -v kwctl >/dev/null 2>&1; then
-          echo "=== Verifying policy: $url ==="
-          kwctl verify registry://${url#registry:} 2>&1
-        else
-          echo "Could not get policy module or kwctl not installed."
-        fi
-  kwctl-pull-policy:
-    shortCut: Shift-D
-    override: true
-    description: Pull policy to local store
-    scopes:
-      - clusteradmissionpolicies.policies.kubewarden.io
-      - admissionpolicies.policies.kubewarden.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        url=$(kubectl get clusteradmissionpolicy $NAME -o jsonpath='{.spec.module}' --context $CONTEXT 2>/dev/null)
-        if [ -z "$url" ]; then
-          url=$(kubectl get admissionpolicy -n $NAMESPACE $NAME -o jsonpath='{.spec.module}' --context $CONTEXT 2>/dev/null)
-        fi
-        if [ -n "$url" ] && command -v kwctl >/dev/null 2>&1; then
-          echo "Pulling policy: $url"
-          kwctl pull registry://${url#registry:} 2>&1
-        else
-          echo "Could not get policy module or kwctl not installed."
-        fi
-  policyserver-status:
-    shortCut: Shift-O
-    override: true
-    description: PolicyServer status
-    scopes:
-      - policyservers.policies.kubewarden.io
-    command: bash
-    background: false
-    inView: true
-    args:
-      - -c
-      - |
-        echo "=== PolicyServer: $NAME ==="
-        kubectl get policyservers.policies.kubewarden.io $NAME --context $CONTEXT -o jsonpath='{
-          "Replicas: "}{.spec.replicas}{"\n"}{
-          "Image:    "}{.spec.image}{"\n"}{
-          }' 2>/dev/null
+        clear
+        echo "=== Policy Report: $NAME ==="
         echo ""
-        echo "--- Conditions ---"
-        kubectl get policyservers.policies.kubewarden.io $NAME --context $CONTEXT -o jsonpath='{range .status.conditions[*]}  {.type}: {.status} ({.reason}){"\n"}{end}' 2>/dev/null
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        kubectl $CTX -n "$NAMESPACE" get policyreports.wgpolicyk8s.io "$NAME" -o yaml
         echo ""
-        echo "--- Policies on this server ---"
-        kubectl get clusteradmissionpolicies.policies.kubewarden.io --context $CONTEXT -o custom-columns='NAME:.metadata.name,POLICY-SERVER:.spec.policyServer,MODULE:.spec.module,MODE:.spec.mode' 2>/dev/null | grep -E "NAME|$NAME" 
+        echo "Press Enter to continue..."
+        read -r

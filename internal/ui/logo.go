@@ -104,20 +104,11 @@ func (l *Logo) refreshLogo(c config.Color) {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 	l.logo.Clear()
-	for i, s := range LogoSmall {
-		if i == 0 {
-			// "rK9s" — first char 'r' green, rest in logo color
-			if len(s) > 1 {
-				_, _ = fmt.Fprintf(l.logo, "[green::b]%s[%s::b]%s", s[:1], c, s[1:])
-			} else {
-				_, _ = fmt.Fprintf(l.logo, "[green::b]%s", s)
-			}
-		} else {
-			_, _ = fmt.Fprintf(l.logo, "[%s::b]%s", c, s)
-		}
-		if i+1 < len(LogoSmall) {
-			_, _ = fmt.Fprintf(l.logo, "\n")
-		}
+	// First line: "rK9s" fixed in Sudan flag colors (r=red, K=white, 9=black, s=green).
+	_, _ = fmt.Fprintf(l.logo, "[%s::b]r[%s::b]K[%s::b]9[%s::b]s", sudanRed, sudanWhite, sudanBlack, sudanGreen)
+	// Remaining lines flash with the status color (info/warn/err feedback).
+	for i := 1; i < len(LogoSmall); i++ {
+		_, _ = fmt.Fprintf(l.logo, "\n[%s::b]%s", c, LogoSmall[i])
 	}
 }
 

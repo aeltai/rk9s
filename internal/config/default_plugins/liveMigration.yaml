@@ -24,7 +24,6 @@ plugins:
     - virtualmachines.kubevirt.io
     # Whether or not to run the command in background mode
     background: false
-    inView: true
     # The command to run upon invocation.
     command: virtctl
     # Defines the command arguments

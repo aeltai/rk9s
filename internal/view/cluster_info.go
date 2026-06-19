@@ -66,7 +66,7 @@ func (c *ClusterInfo) hasMetrics() bool {
 }
 
 func (c *ClusterInfo) layout() {
-	for row, section := range []string{"Context", "Cluster", "User", "rk9s Rev", "K9s Rev", "K8s Rev", "CPU", "MEM"} {
+	for row, section := range []string{"Context", "Cluster", "K8s", "CPU", "MEM"} {
 		c.SetCell(row, 0, c.sectionCell(section))
 		c.SetCell(row, 1, c.infoCell(render.NAValue))
 	}
@@ -125,27 +125,17 @@ func (c *ClusterInfo) ClusterInfoChanged(prev, curr *model.ClusterMeta) {
 			ctxLabel := fmt.Sprintf("[green::b]%s[-::-] [gray::][%d]", strings.Join(sel, ", "), len(sel))
 			row := c.setCell(0, ctxLabel)
 
-			var clusters, users []string
+			var clusters []string
 			if err == nil {
 				for _, ctxName := range sel {
 					if kctx, ok := rawCfg.Contexts[ctxName]; ok {
 						clusters = append(clusters, kctx.Cluster)
-						users = append(users, kctx.AuthInfo)
 					} else {
 						clusters = append(clusters, ctxName)
-						users = append(users, render.NAValue)
 					}
 				}
 			}
 			row = c.setCell(row, strings.Join(clusters, ", "))
-			row = c.setCell(row, strings.Join(users, ", "))
-
-			row = c.setCell(row, curr.K9sVer)
-			if curr.K9sLatest != "" {
-				row = c.setCell(row, fmt.Sprintf("[cadetblue::b]%s", curr.K9sLatest))
-			} else {
-				row = c.setCell(row, render.NAValue)
-			}
 
 			if err == nil {
 				versions := dao.MultiContextServerVersions(rawCfg, sel)
@@ -177,13 +167,6 @@ func (c *ClusterInfo) ClusterInfoChanged(prev, curr *model.ClusterMeta) {
 			}
 			row := c.setCell(0, context)
 			row = c.setCell(row, curr.Cluster)
-			row = c.setCell(row, curr.User)
-			row = c.setCell(row, curr.K9sVer)
-			if curr.K9sLatest != "" {
-				row = c.setCell(row, fmt.Sprintf("[cadetblue::b]%s", curr.K9sLatest))
-			} else {
-				row = c.setCell(row, render.NAValue)
-			}
 			row = c.setCell(row, curr.K8sVer)
 			if c.hasMetrics() {
 				row = c.setCell(row, ui.AsPercDelta(prev.Cpu, curr.Cpu))

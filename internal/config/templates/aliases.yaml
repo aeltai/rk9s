@@ -12,6 +12,7 @@ aliases:
   gr: gitrepos.fleet.cattle.io
   bd: bundledeployments.fleet.cattle.io
   # RKE2 / K3s
+  addon: addons.k3s.cattle.io
   hc: helmcharts.helm.cattle.io
   hcc: helmchartconfigs.helm.cattle.io
   pl: plans.rke.cattle.io

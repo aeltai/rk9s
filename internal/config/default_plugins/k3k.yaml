@@ -1,0 +1,111 @@
+# K3k plugins for rk9s
+# Kubernetes-in-Kubernetes virtual clusters
+#
+# Dashboard:
+#   :k3k              K3k virtual cluster status
+#
+# K3k creates lightweight Kubernetes clusters running as pods inside a host cluster
+
+plugins:
+  # --- K3k Clusters ---
+  k3k-cluster-status:
+    shortCut: Shift-I
+    description: Cluster overview
+    scopes:
+      - clusters.k3k.io
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        clear
+        echo "=== K3k Cluster: $NAME ==="
+        echo ""
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        echo "--- Cluster Spec ---"
+        kubectl $CTX -n "$NAMESPACE" get clusters.k3k.io "$NAME" -o yaml | head -40
+        echo ""
+        echo "--- Cluster Status ---"
+        kubectl $CTX -n "$NAMESPACE" get clusters.k3k.io "$NAME" -o jsonpath='{.status}' | jq . 2>/dev/null || echo "(no status)"
+        echo ""
+        echo "--- Server Pods ---"
+        kubectl $CTX -n "$NAMESPACE" get pods -l "cluster.k3k.io/cluster-name=$NAME,cluster.k3k.io/role=server" 2>/dev/null || echo "(no server pods)"
+        echo ""
+        echo "--- Agent Pods ---"
+        kubectl $CTX -n "$NAMESPACE" get pods -l "cluster.k3k.io/cluster-name=$NAME,cluster.k3k.io/role=agent" 2>/dev/null || echo "(no agent pods)"
+        echo ""
+        echo "Press Enter to continue..."
+        read -r
+
+  k3k-cluster-kubeconfig:
+    shortCut: Shift-K
+    description: Get kubeconfig
+    scopes:
+      - clusters.k3k.io
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        SECRET_NAME="${NAME}-kubeconfig"
+        echo "=== Kubeconfig for K3k cluster: $NAME ==="
+        echo ""
+        echo "Secret: $NAMESPACE/$SECRET_NAME"
+        echo ""
+        kubectl $CTX -n "$NAMESPACE" get secret "$SECRET_NAME" -o jsonpath='{.data.kubeconfig}' 2>/dev/null | base64 -d
+        echo ""
+        echo ""
+        echo "---"
+        echo "To use: kubectl $CTX -n $NAMESPACE get secret $SECRET_NAME -o jsonpath='{.data.kubeconfig}' | base64 -d > /tmp/$NAME.kubeconfig"
+        echo "Press Enter to continue..."
+        read -r
+
+  k3k-cluster-scale:
+    shortCut: Shift-S
+    description: Scale servers/agents
+    scopes:
+      - clusters.k3k.io
+    command: bash
+    background: false
+    args:
+      - -c
+      - |
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        SERVERS=$(kubectl $CTX -n "$NAMESPACE" get clusters.k3k.io "$NAME" -o jsonpath='{.spec.servers}')
+        AGENTS=$(kubectl $CTX -n "$NAMESPACE" get clusters.k3k.io "$NAME" -o jsonpath='{.spec.agents}')
+        echo "Current: servers=$SERVERS, agents=$AGENTS"
+        echo -n "New server count (Enter to skip): "
+        read -r NEW_SERVERS
+        echo -n "New agent count (Enter to skip): "
+        read -r NEW_AGENTS
+        PATCH=""
+        [ -n "$NEW_SERVERS" ] && PATCH="\"servers\":$NEW_SERVERS"
+        [ -n "$NEW_AGENTS" ] && [ -n "$PATCH" ] && PATCH="$PATCH,"
+        [ -n "$NEW_AGENTS" ] && PATCH="$PATCH\"agents\":$NEW_AGENTS"
+        if [ -n "$PATCH" ]; then
+          kubectl $CTX -n "$NAMESPACE" patch clusters.k3k.io "$NAME" --type=merge -p "{\"spec\":{$PATCH}}"
+          echo "Scaled."
+        else
+          echo "No changes."
+        fi
+
+  k3k-cluster-delete:
+    shortCut: Shift-D
+    description: Delete cluster
+    scopes:
+      - clusters.k3k.io
+    command: bash
+    background: false
+    confirm: true
+    args:
+      - -c
+      - |
+        CTX=""
+        [ -n "$CONTEXT" ] && CTX="--context $CONTEXT"
+        echo "Deleting K3k cluster: $NAME in namespace $NAMESPACE"
+        kubectl $CTX -n "$NAMESPACE" delete clusters.k3k.io "$NAME"
+        echo "Deleted."

@@ -1,5 +1,6 @@
 # etcd plugins for rK9s
-# F4 = etcd Snapshots (tab 1) → ← Control Planes (tab 2)
+# F4 = etcd Dashboard (:etcd). Snapshots: :etcdsnapshots.rke.cattle.io
+# F5 = Nodes — press → to cycle All · ControlPlanes · Workers (by label) · NodePools …
 #
 # Control-plane tab shows filtered nodes. All Shift-* commands below
 # target the etcd pod running on the selected node via kubectl exec.
@@ -308,7 +309,7 @@ plugins:
 
   # ─── Shift-B: Backup config & snapshot files ─────────────────────
   etcd-backup-config:
-    shortCut: Shift-B
+    shortCut: Shift-3
     override: true
     description: etcd backup config & local snapshot files
     scopes:
